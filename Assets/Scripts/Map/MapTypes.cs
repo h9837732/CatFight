@@ -13,7 +13,9 @@ namespace CatFight.Map
         Shop = 3,
         Rest = 4,
         Treasure = 5,
-        Boss = 6
+        Boss = 6,
+        /// <summary>起点：空节点，不显示图标，玩家初始所在位置。</summary>
+        Start = 7
     }
 
     /// <summary>地图上的一个关卡节点。</summary>
@@ -24,7 +26,7 @@ namespace CatFight.Map
         public int row;
         public int index;
         public NodeType type;
-        public Vector2 pos;     // 地图局部坐标（y 向下递减）
+        public Vector2 pos;     // 地图局部坐标（y 向上递增：第 0 行在最下方）
         public List<int> next = new List<int>();
         public List<int> prev = new List<int>();
 

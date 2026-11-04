@@ -204,6 +204,17 @@ namespace CatFight.Map
 
             int lastRow = map.rowCount - 1;
 
+            // 0. 起点必须是 Start（空节点）
+            var startIds = map.Rows[0];
+            for (int i = 0; i < startIds.Count; i++)
+            {
+                if (map.GetNode(startIds[i]).type != NodeType.Start)
+                {
+                    error = $"起点节点 {startIds[i]} 类型不是 Start";
+                    return false;
+                }
+            }
+
             // 1. 末行必须是 Boss
             var lastIds = map.Rows[lastRow];
             for (int i = 0; i < lastIds.Count; i++)

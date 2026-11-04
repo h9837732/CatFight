@@ -50,6 +50,8 @@ namespace CatFight.Map
         public int maxNodesPerRow = 4;
         public int[] convergeRows = { 6, 12 };
         public float[] rowWidthWeights = { 0.15f, 0.35f, 0.32f, 0.18f };
+        /// <summary>起点上方第一行的分支数：玩家开局就在这几个方向中选择。</summary>
+        public int firstBranchCount = 2;
 
         [Header("几何")]
         public float rowSpacing = 160f;
@@ -71,7 +73,7 @@ namespace CatFight.Map
             var cfg = CreateInstance<MapConfig>();
             cfg.rowRules = new List<NodeTypeRule>
             {
-                Rule(0, 0, new[] { NodeType.Battle }, new[] { 1f }),
+                Rule(0, 0, new[] { NodeType.Start }, new[] { 1f }),
                 Rule(1, 1, new[] { NodeType.Battle, NodeType.Event }, new[] { 0.75f, 0.25f }),
                 Rule(2, 3, new[] { NodeType.Battle, NodeType.Event, NodeType.Elite }, new[] { 0.55f, 0.30f, 0.15f }),
                 Rule(4, 4, new[] { NodeType.Battle, NodeType.Event, NodeType.Shop, NodeType.Rest },

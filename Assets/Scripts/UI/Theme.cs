@@ -77,11 +77,12 @@ namespace CatFight.UI
                 case Map.NodeType.Rest:     return Rest;
                 case Map.NodeType.Treasure: return Treasure;
                 case Map.NodeType.Boss:     return Boss;
+                case Map.NodeType.Start:    return InkFaint;
                 default: return Ink;
             }
         }
 
-        /// <summary>节点类型 → 单字标签（无美术阶段的占位图形）。</summary>
+        /// <summary>节点类型 → 单字标签（无美术阶段的占位图形）。起点为空节点，不显示图标。</summary>
         public static string GlyphFor(Map.NodeType t)
         {
             switch (t)
@@ -93,6 +94,7 @@ namespace CatFight.UI
                 case Map.NodeType.Rest:     return "休";
                 case Map.NodeType.Treasure: return "宝";
                 case Map.NodeType.Boss:     return "王";
+                case Map.NodeType.Start:    return "";
                 default: return "?";
             }
         }
@@ -109,6 +111,7 @@ namespace CatFight.UI
                 case Map.NodeType.Rest:     return "休息点";
                 case Map.NodeType.Treasure: return "宝箱";
                 case Map.NodeType.Boss:     return "首领";
+                case Map.NodeType.Start:    return "";
                 default: return "未知";
             }
         }
@@ -124,6 +127,7 @@ namespace CatFight.UI
                 case Map.NodeType.Rest:     return "恢复生命，或升级一张卡";
                 case Map.NodeType.Treasure: return "免费获得遗物或道具";
                 case Map.NodeType.Boss:     return "本幕最终战";
+                case Map.NodeType.Start:    return "出发的地方";
                 default: return "";
             }
         }

@@ -52,7 +52,7 @@ namespace CatFight.Core
                 gold = 99,
             };
             run.deck.AddRange(StarterDeck());
-            run.relics.Add("relic_burning_blood");
+            // 遗物不预设：开局由玩家三选一（见 MapScreen.ShowRelicChoice）
             return run;
         }
 

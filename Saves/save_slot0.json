@@ -1,15 +1,16 @@
 {
     "version": 1,
-    "seed": 17033437,
+    "seed": 20418000,
     "generatorVersion": 1,
     "visitedPath": [
-        0
+        0,
+        100
     ],
     "act": 1,
     "characterId": "ironclad",
-    "hp": 62,
+    "hp": 80,
     "maxHp": 80,
-    "gold": 135,
+    "gold": 99,
     "deck": [
         {
             "id": "strike",
@@ -49,10 +50,6 @@
         },
         {
             "id": "bash",
-            "upgraded": false
-        },
-        {
-            "id": "twin_strike",
             "upgraded": false
         }
     ],

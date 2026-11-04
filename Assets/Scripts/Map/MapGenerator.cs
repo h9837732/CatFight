@@ -69,7 +69,7 @@ namespace CatFight.Map
 
             int[] counts = BuildRowCounts(rng, cfg);
 
-            // B. 节点坐标
+            // B. 节点坐标（第 0 行在最下方，越往上行号越大）
             for (int r = 0; r < rowCount; r++)
             {
                 int count = counts[r];
@@ -84,7 +84,7 @@ namespace CatFight.Map
                         row = r,
                         index = i,
                         type = NodeType.Battle,
-                        pos = new Vector2(centerX + jitter, -r * cfg.rowSpacing)
+                        pos = new Vector2(centerX + jitter, r * cfg.rowSpacing)
                     });
                 }
             }
@@ -93,7 +93,10 @@ namespace CatFight.Map
             // C. 连边
             for (int r = 0; r < rowCount - 1; r++) ConnectRows(map, cfg, rng, r);
 
-            // BOSS 行固定为 Boss 类型（此时只占位，类型分配会跳过非末行规则）
+            // 起点为空节点；BOSS 行固定为 Boss 类型
+            var start = map.GetNode(map.StartId);
+            if (start != null) start.type = NodeType.Start;
+
             var boss = map.GetNode(map.BossId);
             if (boss != null) boss.type = NodeType.Boss;
 
@@ -118,12 +121,17 @@ namespace CatFight.Map
             var counts = new int[rowCount];
             for (int i = 0; i < rowCount; i++) counts[i] = 1;
 
+            // 起点上方第一行固定为 firstBranchCount（“开局选两条路”）
+            if (rowCount > 2 && cfg.firstBranchCount > 1)
+                counts[1] = Math.Min(Math.Max(2, cfg.firstBranchCount), cfg.maxNodesPerRow);
+
             for (int k = 0; k + 1 < anchors.Count; k++)
             {
                 int a = anchors[k];
                 int b = anchors[k + 1];
                 for (int r = a + 1; r < b; r++)
                 {
+                    if (r <= 1) continue;               // 已固定
                     int prev = counts[r - 1];
                     int maxByStart = prev + 1;          // 相对上一行最多 +1
                     int maxByEnd = (b - r) + 1;         // 剩余行内必须能降回 1
@@ -233,6 +241,7 @@ namespace CatFight.Map
                 for (int i = 0; i < ids.Count; i++)
                 {
                     var node = map.GetNode(ids[i]);
+                    if (r == 0) { node.type = NodeType.Start; Increment(used, NodeType.Start); continue; }
                     if (r == map.rowCount - 1) { node.type = NodeType.Boss; Increment(used, NodeType.Boss); continue; }
                     node.type = PickType(rng, cfg, map, rule, r, used);
                     Increment(used, node.type);

@@ -107,8 +107,48 @@ namespace CatFight.Battle
 
             _state.Start(run.seed + run.visitedPath.Count * 13, run.hp, run.maxHp, deck, encounter);
 
+            // 遗物：战斗开始时生效
+            ApplyBattleStartRelics(run);
+
             RebuildEnemies();
             RefreshAll();
+        }
+
+        /// <summary>战斗开始时的遗物钩子。</summary>
+        private void ApplyBattleStartRelics(Core.RunState run)
+        {
+            if (run == null || run.relics == null) return;
+
+            foreach (var id in run.relics)
+            {
+                switch (id)
+                {
+                    case "relic_vajra":
+                        _state.Player.AddStatus(StatusType.Strength, 1);
+                        break;
+
+                    case "relic_pocket_watch":
+                        _state.Player.AddStatus(StatusType.Dexterity, 1);
+                        break;
+
+                    case "relic_anchor":
+                        _state.GainBlock(_state.Player, 10);
+                        break;
+
+                    case "relic_iron_plate":
+                        _state.GainBlock(_state.Player, 4);
+                        break;
+
+                    case "relic_blood_vial":
+                        _state.Player.hp = Mathf.Min(_state.Player.maxHp, _state.Player.hp + 2);
+                        break;
+
+                    case "relic_lantern":
+                        // 仅在每场战斗的第一回合生效
+                        _state.AddEnergy(1);
+                        break;
+                }
+            }
         }
 
         private void OnDestroy()
@@ -174,95 +214,95 @@ namespace CatFight.Battle
             ert.sizeDelta = new Vector2(400f, 40f);
         }
 
+        /// <summary>
+        /// 玩家区：立绘（图片）→ 血条 → 行动点数，自上而下。
+        /// 不使用任何底板 / 状态框，直接绘制在场景背景上。
+        /// </summary>
         private void BuildPlayerPanel()
         {
-            var panel = UiKit.CreatePanel(_root, "PlayerPanel", Theme.PanelBg.WithAlpha(0.88f));
-            var rt = panel.rectTransform;
-            rt.anchorMin = new Vector2(0f, 0f);
-            rt.anchorMax = new Vector2(0f, 0f);
-            rt.pivot = new Vector2(0f, 0f);
-            rt.anchoredPosition = new Vector2(40f, 380f);
-            rt.sizeDelta = new Vector2(420f, 240f);
+            var root = UiKit.CreateRect(_root, "PlayerArea");
+            root.anchorMin = root.anchorMax = new Vector2(0f, 0f);
+            root.pivot = new Vector2(0f, 0f);
+            root.anchoredPosition = new Vector2(48f, 40f);
+            root.sizeDelta = new Vector2(340f, 520f);
 
-            // 立绘占位
-            var portrait = UiKit.CreateImage(panel.transform, "Portrait", Theme.PaperDark, UiKit.Circle);
+            const float W = 300f;
+
+            // --- 立绘（图片，不是文字）---
+            var portrait = UiKit.CreateImage(root, "PlayerPortrait", Color.white, UiKit.Portrait);
+            portrait.preserveAspect = true;
             var prt = portrait.rectTransform;
-            prt.anchorMin = prt.anchorMax = new Vector2(0f, 1f);
-            prt.pivot = new Vector2(0f, 1f);
-            prt.anchoredPosition = new Vector2(20f, -20f);
-            prt.sizeDelta = new Vector2(120f, 120f);
+            prt.anchorMin = prt.anchorMax = new Vector2(0.5f, 0f);
+            prt.pivot = new Vector2(0.5f, 0f);
+            prt.anchoredPosition = new Vector2(0f, 176f);
+            prt.sizeDelta = new Vector2(W, W);
 
-            var pchar = UiKit.CreateText(portrait.transform, "Char", "猫", Theme.FontTitle, Theme.Ink);
-            UiKit.Stretch(pchar.rectTransform);
-
-            var nameT = UiKit.CreateText(panel.transform, "Name", "玩家", Theme.FontBody, Theme.Paper, TextAnchor.MiddleLeft);
-            var nrt = nameT.rectTransform;
-            nrt.anchorMin = nrt.anchorMax = new Vector2(0f, 1f);
-            nrt.pivot = new Vector2(0f, 1f);
-            nrt.anchoredPosition = new Vector2(160f, -28f);
-            nrt.sizeDelta = new Vector2(240f, 44f);
-
-            // 生命条
-            var hbrt = UiKit.CreateRect(panel.transform, "HpBarRoot");
-            hbrt.anchorMin = hbrt.anchorMax = new Vector2(0f, 1f);
-            hbrt.pivot = new Vector2(0f, 1f);
-            hbrt.anchoredPosition = new Vector2(160f, -84f);
-            hbrt.sizeDelta = new Vector2(240f, 32f);
-
-            _playerHpFill = UiKit.CreateProgressBar(hbrt.transform, "Hp", new Vector2(240f, 32f),
-                Theme.HpBack, Theme.HpRed, segments: 8);
-            var hprt = _playerHpFill.transform.parent.GetComponent<RectTransform>();
-            UiKit.Stretch(hprt);
-
-            _playerHpText = UiKit.CreateText(panel.transform, "HpText", "80/80", Theme.FontSmall, Theme.Paper);
-            var hptrt = _playerHpText.rectTransform;
-            hptrt.anchorMin = hptrt.anchorMax = new Vector2(0f, 1f);
-            hptrt.pivot = new Vector2(0f, 1f);
-            hptrt.anchoredPosition = new Vector2(160f, -120f);
-            hptrt.sizeDelta = new Vector2(240f, 30f);
-
-            // 格挡
-            var blockCircle = UiKit.CreateImage(panel.transform, "BlockCircle", Theme.BlockBlue, UiKit.Circle);
+            // 格挡徽章（叠在立绘右上角）
+            var blockCircle = UiKit.CreateImage(root, "BlockCircle", Theme.BlockBlue, UiKit.Circle);
             var brt = blockCircle.rectTransform;
-            brt.anchorMin = brt.anchorMax = new Vector2(1f, 1f);
-            brt.pivot = new Vector2(1f, 1f);
-            brt.anchoredPosition = new Vector2(-24f, -20f);
-            brt.sizeDelta = new Vector2(84f, 84f);
+            brt.anchorMin = brt.anchorMax = new Vector2(0.5f, 0f);
+            brt.pivot = new Vector2(0.5f, 0f);
+            brt.anchoredPosition = new Vector2(W * 0.5f - 16f, 176f + W - 84f);
+            brt.sizeDelta = new Vector2(82f, 82f);
 
             _playerBlockText = UiKit.CreateText(blockCircle.transform, "Val", "0", Theme.FontHead, Color.white);
             UiKit.Stretch(_playerBlockText.rectTransform);
 
-            var blockCap = UiKit.CreateText(panel.transform, "BlockCap", "格挡", Theme.FontTiny, Theme.InkFaint);
+            var blockCap = UiKit.CreateText(root, "BlockCap", "格挡", Theme.FontTiny, Theme.InkFaint);
             var bct = blockCap.rectTransform;
-            bct.anchorMin = bct.anchorMax = new Vector2(0f, 1f);
-            bct.pivot = new Vector2(1f, 1f);
-            bct.anchoredPosition = new Vector2(-24f, -108f);
-            bct.sizeDelta = new Vector2(84f, 24f);
+            bct.anchorMin = bct.anchorMax = new Vector2(0.5f, 0f);
+            bct.pivot = new Vector2(0.5f, 1f);
+            bct.anchoredPosition = new Vector2(W * 0.5f - 16f, 176f + W - 88f);
+            bct.sizeDelta = new Vector2(82f, 22f);
 
-            // 状态行
-            _playerStatusText = UiKit.CreateText(panel.transform, "Statuses", "", Theme.FontTiny,
+            // --- 血条（立绘下方）---
+            var hbrt = UiKit.CreateRect(root, "HpBarRoot");
+            hbrt.anchorMin = hbrt.anchorMax = new Vector2(0.5f, 0f);
+            hbrt.pivot = new Vector2(0.5f, 0f);
+            hbrt.anchoredPosition = new Vector2(0f, 146f);
+            hbrt.sizeDelta = new Vector2(W, 34f);
+
+            _playerHpFill = UiKit.CreateProgressBar(hbrt, "Hp", new Vector2(W, 34f),
+                Theme.HpBack, Theme.HpRed, segments: 8);
+            var barRoot = _playerHpFill.transform.parent.GetComponent<RectTransform>();
+            UiKit.Stretch(barRoot);
+
+            _playerHpText = UiKit.CreateText(hbrt, "HpText", "80/80", Theme.FontSmall, Color.white,
+                TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.Stretch(_playerHpText.rectTransform);
+
+            // --- 行动点数（血条下方）---
+            var energyCap = UiKit.CreateText(root, "EnergyCap", "行动点", Theme.FontTiny, Theme.InkFaint,
+                TextAnchor.MiddleLeft);
+            var ecrt = energyCap.rectTransform;
+            ecrt.anchorMin = ecrt.anchorMax = new Vector2(0.5f, 0f);
+            ecrt.pivot = new Vector2(0f, 0f);
+            ecrt.anchoredPosition = new Vector2(-W * 0.5f, 116f);
+            ecrt.sizeDelta = new Vector2(120f, 24f);
+
+            _energyText = UiKit.CreateText(root, "EnergyVal", "3/3", Theme.FontTiny, Theme.InkFaint,
+                TextAnchor.MiddleRight);
+            var evrt = _energyText.rectTransform;
+            evrt.anchorMin = evrt.anchorMax = new Vector2(0.5f, 0f);
+            evrt.pivot = new Vector2(1f, 0f);
+            evrt.anchoredPosition = new Vector2(W * 0.5f, 116f);
+            evrt.sizeDelta = new Vector2(120f, 24f);
+
+            _energyRow = UiKit.CreateRect(root, "EnergyRow");
+            _energyRow.anchorMin = _energyRow.anchorMax = new Vector2(0.5f, 0f);
+            _energyRow.pivot = new Vector2(0f, 0f);
+            _energyRow.anchoredPosition = new Vector2(-W * 0.5f, 50f);
+            _energyRow.sizeDelta = new Vector2(W, 56f);
+
+            // --- 状态（最下面一行，不要底板）---
+            _playerStatusText = UiKit.CreateText(root, "Statuses", "", Theme.FontTiny,
                 Theme.Gold, TextAnchor.MiddleLeft);
             var srt = _playerStatusText.rectTransform;
-            srt.anchorMin = srt.anchorMax = new Vector2(0f, 0f);
-            srt.pivot = new Vector2(0f, 0f);
-            srt.anchoredPosition = new Vector2(20f, 16f);
-            srt.sizeDelta = new Vector2(380f, 100f);
+            srt.anchorMin = srt.anchorMax = new Vector2(0.5f, 0f);
+            srt.pivot = new Vector2(0f, 1f);
+            srt.anchoredPosition = new Vector2(-W * 0.5f, 42f);
+            srt.sizeDelta = new Vector2(W, 40f);
             _playerStatusText.lineSpacing = 1.15f;
-
-            // 能量
-            var energyLabel = UiKit.CreateText(panel.transform, "EnergyCap", "能量", Theme.FontTiny,
-                Theme.InkFaint, TextAnchor.MiddleRight);
-            var elrt = energyLabel.rectTransform;
-            elrt.anchorMin = elrt.anchorMax = new Vector2(1f, 0f);
-            elrt.pivot = new Vector2(1f, 0f);
-            elrt.anchoredPosition = new Vector2(-160f, 18f);
-            elrt.sizeDelta = new Vector2(80f, 26f);
-
-            _energyRow = UiKit.CreateRect(panel.transform, "EnergyRow");
-            _energyRow.anchorMin = _energyRow.anchorMax = new Vector2(1f, 0f);
-            _energyRow.pivot = new Vector2(1f, 0f);
-            _energyRow.anchoredPosition = new Vector2(-24f, 46f);
-            _energyRow.sizeDelta = new Vector2(240f, 48f);
         }
 
         private void BuildEnemyArea()
@@ -293,19 +333,19 @@ namespace CatFight.Battle
 
         private void BuildLogPanel()
         {
-            var panel = UiKit.CreatePanel(_root, "LogPanel", Theme.PanelBg.WithAlpha(0.82f));
-            var rt = panel.rectTransform;
-            rt.anchorMin = new Vector2(1f, 1f);
-            rt.anchorMax = new Vector2(1f, 1f);
-            rt.pivot = new Vector2(1f, 1f);
-            rt.anchoredPosition = new Vector2(-40f, -110f);
-            rt.sizeDelta = new Vector2(400f, 190f);
-            panel.raycastTarget = false;
+            // 完全不用底板 / 圆角框：文字直接落在背景上，靠描边保证可读
+            var root = UiKit.CreateRect(_root, "LogArea");
+            root.anchorMin = new Vector2(1f, 1f);
+            root.anchorMax = new Vector2(1f, 1f);
+            root.pivot = new Vector2(1f, 1f);
+            root.anchoredPosition = new Vector2(-40f, -108f);
+            root.sizeDelta = new Vector2(400f, 170f);
 
-            _logText = UiKit.CreateText(panel.transform, "Log", "", Theme.FontTiny, Theme.Paper, TextAnchor.LowerLeft);
-            var lrt = _logText.rectTransform;
-            UiKit.Stretch(lrt, 14f);
-            _logText.lineSpacing = 1.1f;
+            _logText = UiKit.CreateOutlinedText(root, "Log", "", Theme.FontTiny,
+                Theme.InkSoft, Theme.Paper, TextAnchor.LowerRight);
+            UiKit.Stretch(_logText.rectTransform, 6f);
+            _logText.lineSpacing = 1.2f;
+            _logText.horizontalOverflow = HorizontalWrapMode.Wrap;
         }
 
         // ------------------------------------------------------------------
@@ -440,7 +480,12 @@ namespace CatFight.Battle
                 bg.raycastTarget = true;
 
                 bool affordable = _state.Energy >= card.Cost && _state.PlayerTurnActive;
-                if (!affordable) bg.color = new Color(typeColor.r * 0.5f, typeColor.g * 0.5f, typeColor.b * 0.5f, 0.95f);
+                if (!affordable)
+                {
+                    // 不可打出：能量不足或非玩家回合（敌人回合中手牌保留但变暗）
+                    float k = _state.PlayerTurnActive ? 0.5f : 0.62f;
+                    bg.color = new Color(typeColor.r * k, typeColor.g * k, typeColor.b * k, 0.95f);
+                }
 
                 // 费用圆标
                 var costCircle = UiKit.CreateImage(root, "CostCircle", Theme.EnergyCyan, UiKit.Circle);
@@ -554,33 +599,25 @@ namespace CatFight.Battle
         {
             UiKit.DestroyChildren(_energyRow);
 
+            // 行动点：圆点从左到右排列（不占用 _energyText，因为它已固定在玩家区）
             int max = Mathf.Max(_state.EnergyMax, 1);
-            float size = Mathf.Min(46f, 240f / max - 6f);
-            float step = size + 8f;
-            float total = size * max + 8f * (max - 1);
+            float size = Mathf.Min(52f, 300f / max - 10f);
+            float step = size + 10f;
 
             for (int i = 0; i < max; i++)
             {
                 bool filled = i < _state.Energy;
                 var orb = UiKit.CreateImage(_energyRow, "Orb" + i,
-                    filled ? Theme.EnergyCyan : Theme.PanelBg2, UiKit.Circle);
+                    filled ? Theme.EnergyCyan : Theme.PanelBg2.WithAlpha(0.55f), UiKit.Circle);
                 var rt = orb.rectTransform;
-                rt.anchorMin = rt.anchorMax = new Vector2(1f, 0.5f);
-                rt.pivot = new Vector2(1f, 0.5f);
+                rt.anchorMin = rt.anchorMax = new Vector2(0f, 0.5f);
+                rt.pivot = new Vector2(0f, 0.5f);
                 rt.sizeDelta = new Vector2(size, size);
-                rt.anchoredPosition = new Vector2(-(total - (i + 0.5f) * step), 0f);
+                rt.anchoredPosition = new Vector2((i + 0.5f) * step, 0f);
             }
 
-            if (_energyText == null)
-                _energyText = UiKit.CreateText(_energyRow, "EnergyVal", "", Theme.FontTiny, Theme.Ink);
-
-            _energyText.text = $"{_state.Energy}/{_state.EnergyMax}";
-            var trt = _energyText.rectTransform;
-            trt.anchorMin = trt.anchorMax = new Vector2(1f, 1f);
-            trt.pivot = new Vector2(1f, 1f);
-            trt.anchoredPosition = new Vector2(0f, 26f);
-            trt.sizeDelta = new Vector2(140f, 24f);
-            _energyText.alignment = TextAnchor.MiddleRight;
+            if (_energyText != null)
+                _energyText.text = $"{_state.Energy}/{_state.EnergyMax}";
         }
 
         private static string FormatStatuses(BattleUnit u)

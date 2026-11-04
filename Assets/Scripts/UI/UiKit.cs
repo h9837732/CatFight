@@ -17,6 +17,7 @@ namespace CatFight.UI
         private static Sprite _circle;
         private static Sprite _ring;
         private static Sprite _roundRect;
+        private static Sprite _portrait;
         private static Font _font;
         private static bool _fontWarned;
 
@@ -126,6 +127,174 @@ namespace CatFight.UI
                                    0, SpriteMeshType.FullRect, border);
             sp.hideFlags = HideFlags.HideAndDontSave;
             return sp;
+        }
+
+        /// <summary>
+        /// 玩家立绘。优先读 Resources/Art/player_portrait（接入正式素材时放这里即可），
+        /// 没有则程序生成一个猫头占位图，保证界面不空。
+        /// </summary>
+        public static Sprite Portrait
+        {
+            get
+            {
+                if (_portrait != null) return _portrait;
+
+                var res = Resources.Load<Sprite>("Art/player_portrait");
+                if (res != null)
+                {
+                    _portrait = res;
+                    return _portrait;
+                }
+
+                _portrait = BuildCatPortrait(256);
+                return _portrait;
+            }
+        }
+
+        /// <summary>清缓存（换素材后调试用）。</summary>
+        public static void InvalidatePortrait() => _portrait = null;
+
+        private static Sprite BuildCatPortrait(int size)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            var px = new Color32[size * size];
+
+            Color32 clear = new Color32(0, 0, 0, 0);
+            for (int i = 0; i < px.Length; i++) px[i] = clear;
+
+            Color32 fur = Theme.Hex("6B5544");
+            Color32 furDark = Theme.Hex("4A3A2E");
+            Color32 belly = Theme.Hex("D8C4A8");
+            Color32 eye = Theme.Hex("2B2622");
+            Color32 nose = Theme.Hex("C4707A");
+
+            float cx = size * 0.5f;
+
+            // 身体（下半椭圆）
+            FillEllipseAA(px, size, cx, size * 0.20f, size * 0.29f, size * 0.20f, fur);
+            // 头
+            FillCircleAA(px, size, cx, size * 0.60f, size * 0.235f, fur);
+            // 耳朵（两个三角）
+            FillTriangleAA(px, size,
+                new Vector2(cx - size * 0.20f, size * 0.70f),
+                new Vector2(cx - size * 0.23f, size * 0.93f),
+                new Vector2(cx - size * 0.03f, size * 0.78f), fur);
+            FillTriangleAA(px, size,
+                new Vector2(cx + size * 0.20f, size * 0.70f),
+                new Vector2(cx + size * 0.23f, size * 0.93f),
+                new Vector2(cx + size * 0.03f, size * 0.78f), fur);
+            // 耳内
+            FillTriangleAA(px, size,
+                new Vector2(cx - size * 0.175f, size * 0.725f),
+                new Vector2(cx - size * 0.195f, size * 0.875f),
+                new Vector2(cx - size * 0.065f, size * 0.775f), nose);
+            FillTriangleAA(px, size,
+                new Vector2(cx + size * 0.175f, size * 0.725f),
+                new Vector2(cx + size * 0.195f, size * 0.875f),
+                new Vector2(cx + size * 0.065f, size * 0.775f), nose);
+            // 肚皮（提亮）
+            FillEllipseAA(px, size, cx, size * 0.155f, size * 0.18f, size * 0.12f, belly);
+            // 眼睛
+            FillCircleAA(px, size, cx - size * 0.085f, size * 0.625f, size * 0.030f, eye);
+            FillCircleAA(px, size, cx + size * 0.085f, size * 0.625f, size * 0.030f, eye);
+            // 瞳孔高光
+            FillCircleAA(px, size, cx - size * 0.095f, size * 0.637f, size * 0.010f, new Color32(255, 255, 255, 235));
+            FillCircleAA(px, size, cx + size * 0.075f, size * 0.637f, size * 0.010f, new Color32(255, 255, 255, 235));
+            // 鼻子
+            FillTriangleAA(px, size,
+                new Vector2(cx - size * 0.025f, size * 0.545f),
+                new Vector2(cx + size * 0.025f, size * 0.545f),
+                new Vector2(cx, size * 0.520f), nose);
+            // 胡须
+            DrawLineAA(px, size, cx - size * 0.10f, size * 0.555f, cx - size * 0.26f, size * 0.575f, furDark, 2);
+            DrawLineAA(px, size, cx - size * 0.10f, size * 0.525f, cx - size * 0.26f, size * 0.515f, furDark, 2);
+            DrawLineAA(px, size, cx + size * 0.10f, size * 0.555f, cx + size * 0.26f, size * 0.575f, furDark, 2);
+            DrawLineAA(px, size, cx + size * 0.10f, size * 0.525f, cx + size * 0.26f, size * 0.515f, furDark, 2);
+
+            tex.SetPixels32(px);
+            tex.Apply();
+            tex.hideFlags = HideFlags.HideAndDontSave;
+            var sp = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0f), 100f);
+            sp.hideFlags = HideFlags.HideAndDontSave;
+            return sp;
+        }
+
+        // ---- 抗锯齿填充基元 ----
+
+        private static void Blend(Color32[] px, int size, int x, int y, Color32 c, float a)
+        {
+            if (x < 0 || x >= size || y < 0 || y >= size || a <= 0f) return;
+            int i = y * size + x;
+            Color32 d = px[i];
+            float da = d.a / 255f;
+            float outA = a + da * (1f - a);
+            if (outA <= 0f) return;
+            px[i] = new Color32(
+                (byte)Mathf.Clamp(Mathf.RoundToInt((c.r * a + d.r * da * (1f - a)) / outA), 0, 255),
+                (byte)Mathf.Clamp(Mathf.RoundToInt((c.g * a + d.g * da * (1f - a)) / outA), 0, 255),
+                (byte)Mathf.Clamp(Mathf.RoundToInt((c.b * a + d.b * da * (1f - a)) / outA), 0, 255),
+                (byte)Mathf.Clamp(Mathf.RoundToInt(outA * 255f), 0, 255));
+        }
+
+        private static void FillCircleAA(Color32[] px, int size, float cx, float cy, float r, Color32 col)
+        {
+            int x0 = Mathf.Max(0, Mathf.FloorToInt(cx - r - 1)), x1 = Mathf.Min(size - 1, Mathf.CeilToInt(cx + r + 1));
+            int y0 = Mathf.Max(0, Mathf.FloorToInt(cy - r - 1)), y1 = Mathf.Min(size - 1, Mathf.CeilToInt(cy + r + 1));
+            for (int y = y0; y <= y1; y++)
+                for (int x = x0; x <= x1; x++)
+                {
+                    float dx = x + 0.5f - cx, dy = y + 0.5f - cy;
+                    float d = Mathf.Sqrt(dx * dx + dy * dy);
+                    float a = Mathf.Clamp01(r - d + 0.5f);
+                    Blend(px, size, x, y, col, a);
+                }
+        }
+
+        private static void FillEllipseAA(Color32[] px, int size, float cx, float cy, float rx, float ry, Color32 col)
+        {
+            int x0 = Mathf.Max(0, Mathf.FloorToInt(cx - rx - 1)), x1 = Mathf.Min(size - 1, Mathf.CeilToInt(cx + rx + 1));
+            int y0 = Mathf.Max(0, Mathf.FloorToInt(cy - ry - 1)), y1 = Mathf.Min(size - 1, Mathf.CeilToInt(cy + ry + 1));
+            for (int y = y0; y <= y1; y++)
+                for (int x = x0; x <= x1; x++)
+                {
+                    float nx = (x + 0.5f - cx) / rx, ny = (y + 0.5f - cy) / ry;
+                    float d = Mathf.Sqrt(nx * nx + ny * ny);
+                    float a = Mathf.Clamp01((1f - d) * Mathf.Min(rx, ry) + 0.5f);
+                    Blend(px, size, x, y, col, a);
+                }
+        }
+
+        private static void FillTriangleAA(Color32[] px, int size, Vector2 a, Vector2 b, Vector2 c, Color32 col)
+        {
+            int x0 = Mathf.Max(0, Mathf.FloorToInt(Mathf.Min(a.x, Mathf.Min(b.x, c.x)) - 1));
+            int x1 = Mathf.Min(size - 1, Mathf.CeilToInt(Mathf.Max(a.x, Mathf.Max(b.x, c.x)) + 1));
+            int y0 = Mathf.Max(0, Mathf.FloorToInt(Mathf.Min(a.y, Mathf.Min(b.y, c.y)) - 1));
+            int y1 = Mathf.Min(size - 1, Mathf.CeilToInt(Mathf.Max(a.y, Mathf.Max(b.y, c.y)) + 1));
+
+            for (int y = y0; y <= y1; y++)
+                for (int x = x0; x <= x1; x++)
+                {
+                    var p = new Vector2(x + 0.5f, y + 0.5f);
+                    float d1 = Sign(p, a, b), d2 = Sign(p, b, c), d3 = Sign(p, c, a);
+                    bool hasNeg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+                    bool hasPos = (d1 > 0) || (d2 > 0) || (d3 > 0);
+                    if (hasNeg && hasPos) continue;
+                    Blend(px, size, x, y, col, 1f);
+                }
+        }
+
+        private static float Sign(Vector2 p1, Vector2 p2, Vector2 p3)
+            => (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
+
+        private static void DrawLineAA(Color32[] px, int size, float x0, float y0, float x1, float y1, Color32 col, int thickness)
+        {
+            float dx = x1 - x0, dy = y1 - y0;
+            int steps = Mathf.Max(2, Mathf.CeilToInt(Mathf.Sqrt(dx * dx + dy * dy) * 2f));
+            for (int i = 0; i <= steps; i++)
+            {
+                float t = (float)i / steps;
+                FillCircleAA(px, size, x0 + dx * t, y0 + dy * t, thickness * 0.5f, col);
+            }
         }
 
         /// <summary>中文字体：优先系统字体（雅黑 / 黑体 / 宋体），失败再退到内置字体。</summary>

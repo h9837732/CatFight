@@ -71,10 +71,21 @@ namespace CatFight.MapScene
 
             _currentId = _run.CurrentNodeId;
 
+            // 新局：先站在起点（空节点）上，再开遗物三选一
+            if (_run.visitedPath.Count == 0)
+            {
+                _run.visitedPath.Add(_map.StartId);
+                _currentId = _map.StartId;
+                SaveService.SaveRun(_run);
+            }
+
             BuildUi();
             BuildMap();
             RefreshState();
             FocusOnCurrent(instant: true);
+
+            if (_run.relics.Count == 0)
+                ShowRelicChoice();
         }
 
         private void OnDestroy()
@@ -101,7 +112,7 @@ namespace CatFight.MapScene
             var viewport = UiKit.CreateRect(_canvas.transform, "MapViewport");
             UiKit.Stretch(viewport);
             var mask = viewport.gameObject.AddComponent<RectMask2D>();
-            mask.padding = new Vector4(0f, 150f, 0f, 130f);
+            mask.padding = new Vector4(0f, 120f, 0f, 130f);
 
             _mapRoot = UiKit.CreateRect(viewport, "MapRoot");
             _mapRoot.anchorMin = _mapRoot.anchorMax = new Vector2(0.5f, 0.5f);
@@ -219,7 +230,8 @@ namespace CatFight.MapScene
         private NodeWidget CreateNodeWidget(Transform parent, MapNode node)
         {
             bool isBoss = node.type == NodeType.Boss;
-            float size = isBoss ? NodeSizeBoss : NodeSize;
+            bool isStart = node.type == NodeType.Start;
+            float size = isBoss ? NodeSizeBoss : (isStart ? NodeSize * 0.84f : NodeSize);
             Color typeColor = Theme.ColorFor(node.type);
 
             var root = UiKit.CreateRect(parent, "Node_" + node.id);
@@ -379,21 +391,14 @@ namespace CatFight.MapScene
 
         private void FocusOnCurrent(bool instant)
         {
-            // 当前节点放在画面偏上位置（约 1/4 处），下方留给后续路径
-            const float FocusY = 250f;
-            Vector2 anchorPos = new Vector2(0f, FocusY);
+            // 路线自下而上：当前节点放在画面下方，上方留出将要走的路
+            const float FocusScreenY = -250f;
 
-            if (_currentId >= 0)
-            {
-                var node = _map.GetNode(_currentId);
-                if (node != null) anchorPos.x = -node.pos.x;
-            }
-            else
-            {
-                var start = _map.GetNode(_map.StartId);
-                if (start != null) anchorPos.x = -start.pos.x;
-                anchorPos.y = FocusY + 40f;
-            }
+            int id = _currentId >= 0 ? _currentId : _map.StartId;
+            var node = _map.GetNode(id);
+            Vector2 anchorPos = node != null
+                ? new Vector2(-node.pos.x, FocusScreenY - node.pos.y)
+                : Vector2.zero;
 
             _mapRoot.anchoredPosition = ClampPan(anchorPos);
         }
@@ -423,10 +428,15 @@ namespace CatFight.MapScene
         private Vector2 ClampPan(Vector2 p)
         {
             if (_map == null) return p;
-            // 允许平移范围：顶部留下起点，底部能滑到最后一行
-            float topLimit = 420f;
-            float bottomLimit = -(_map.rowCount - 1) * _config.rowSpacing - 200f;
-            p.y = Mathf.Clamp(p.y, bottomLimit, topLimit);
+
+            // 内容坐标：起点 y=0（屏幕下方），BOSS y=(rowCount-1)*rowSpacing（屏幕上方）
+            const float FocusScreenY = -250f;
+            float maxY = (_map.rowCount - 1) * _config.rowSpacing;
+
+            float minPan = FocusScreenY - maxY;   // 看到 BOSS 时的极限
+            float maxPan = FocusScreenY;          // 看到起点时的极限
+
+            p.y = Mathf.Clamp(p.y, minPan, maxPan + 80f);
             p.x = Mathf.Clamp(p.x, -420f, 420f);
             return p;
         }
@@ -485,6 +495,11 @@ namespace CatFight.MapScene
                 case NodeType.Event:
                     ShowEventDialog();
                     break;
+
+                default:
+                    // 起点（Start）等无需分发的节点：直接解锁
+                    _inputLocked = false;
+                    break;
             }
         }
 
@@ -531,6 +546,62 @@ namespace CatFight.MapScene
         private void SyncRun()
         {
             GameSession.Instance.SetRun(_run);
+        }
+
+        /// <summary>开局：遗物三选一。选完才能选第一条路。</summary>
+        private void ShowRelicChoice()
+        {
+            _inputLocked = true;
+            OpenModal("选择一件遗物", new Vector2(1080f, 640f));
+
+            var desc = UiKit.CreateText(_modal, "Desc", "仅此一次。选定后无法更换。",
+                Theme.FontBody, Theme.Paper);
+            UiKit.AnchorCenter(desc.rectTransform, new Vector2(0f, 218f), new Vector2(900f, 44f));
+
+            var choices = Battle.RelicDb.RollChoices(_run.seed);
+            float x = -340f;
+
+            for (int i = 0; i < choices.Count; i++)
+            {
+                var relic = choices[i];
+                Color c = RelicColor(relic.rarity);
+
+                var btn = UiKit.CreateButton(_modal, "Relic" + i,
+                    $"{relic.name}\n\n{relic.desc}",
+                    Theme.FontSmall, c, Color.white, () =>
+                    {
+                        _run.relics.Add(relic.id);
+
+                        // 立即生效型遗物
+                        if (relic.id == "relic_purse") _run.gold += 100;
+
+                        CloseModalAndContinue();
+                        RefreshState();
+                    });
+                UiKit.AnchorCenter(btn.GetComponent<RectTransform>(), new Vector2(x, 10f), new Vector2(300f, 320f));
+
+                var label = btn.transform.Find("Label")?.GetComponent<Text>();
+                if (label != null)
+                {
+                    label.alignment = TextAnchor.UpperCenter;
+                    label.rectTransform.offsetMin = new Vector2(14f, 14f);
+                    label.rectTransform.offsetMax = new Vector2(-14f, -18f);
+                    label.lineSpacing = 1.2f;
+                }
+
+                x += 340f;
+            }
+        }
+
+        private static Color RelicColor(Battle.RelicRarity r)
+        {
+            switch (r)
+            {
+                case Battle.RelicRarity.Starter: return Theme.Rest;
+                case Battle.RelicRarity.Uncommon: return Theme.Skill;
+                case Battle.RelicRarity.Rare: return Theme.Power;
+                default: return Theme.Shop;
+            }
         }
 
         private void ShowRestDialog()

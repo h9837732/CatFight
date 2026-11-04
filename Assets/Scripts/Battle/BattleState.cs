@@ -223,6 +223,13 @@ namespace CatFight.Battle
             TurnNumber++;
             Phase = BattlePhase.PlayerTurnStart;
 
+            // 0. 上一回合保留的手牌现在才弃掉（结束回合时手牌不消失，见需求）
+            if (Hand.Count > 0)
+            {
+                DiscardPile.AddRange(Hand);
+                Hand.Clear();
+            }
+
             // 1. 玩家格挡清零
             Player.ResetBlock();
 
@@ -506,9 +513,8 @@ namespace CatFight.Battle
 
             Phase = BattlePhase.TurnEnding;
 
-            // 手牌全部弃掉（策略 A，见设计文档 §6.6）
-            DiscardPile.AddRange(Hand);
-            Hand.Clear();
+            // 手牌保留：不在此处弃牌。为了让手牌一直看得见，实际弃牌推迟到
+            // 下一回合的 StartPlayerTurn 开头（见需求：“结束回合时不要让手牌消失”）。
 
             // 玩家回合结束状态：再生、易伤递减
             int regen = Player.GetStatus(StatusType.Regen);
@@ -625,6 +631,21 @@ namespace CatFight.Battle
         }
 
         public int AliveEnemyCount => Enemies.FindAll(e => !e.IsDead).Count;
+
+        /// <summary>额外获得/扣除行动点（遗物、卡牌效果用）。</summary>
+        public void AddEnergy(int amount)
+        {
+            Energy = Math.Max(0, Energy + amount);
+            if (amount > 0) LogLine($"获得 {amount} 点行动点");
+            Changed();
+        }
+
+        /// <summary>额外提高行动点上限（遗物用）。</summary>
+        public void AddEnergyMax(int amount)
+        {
+            EnergyMax = Math.Max(1, EnergyMax + amount);
+            Energy = EnergyMax;
+        }
     }
 
     /// <summary>战斗初始化用的轻量卡牌引用（避免 Battle 依赖 Core）。</summary>

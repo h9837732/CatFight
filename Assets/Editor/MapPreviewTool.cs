@@ -176,6 +176,7 @@ namespace CatFight.EditorTools
                 case NodeType.Rest: return "R";
                 case NodeType.Treasure: return "T";
                 case NodeType.Boss: return "X";
+                case NodeType.Start: return "o";
                 default: return ".";
             }
         }
@@ -186,8 +187,9 @@ namespace CatFight.EditorTools
 
         private static Vector2Int ToPixel(Vector2 pos, MapConfig cfg, int h)
         {
+            // pos.y 向上递增（起点 y=0 在图像最下方），图像坐标 y 向下递增，所以要翻转
             int x = Mathf.RoundToInt((pos.x + cfg.mapWidth * 0.5f + Margin) * Scale);
-            int y = h - 1 - Mathf.RoundToInt((-pos.y + Margin) * Scale);
+            int y = h - 1 - Mathf.RoundToInt((pos.y + Margin) * Scale);
             return new Vector2Int(x, y);
         }
 
@@ -202,6 +204,7 @@ namespace CatFight.EditorTools
                 case NodeType.Rest: return Hex("B5561E");
                 case NodeType.Treasure: return Hex("6B4A2A");
                 case NodeType.Boss: return Hex("5A0F14");
+                case NodeType.Start: return Hex("8A7F70");
                 default: return Hex("000000");
             }
         }

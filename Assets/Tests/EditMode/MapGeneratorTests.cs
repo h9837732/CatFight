@@ -246,6 +246,39 @@ namespace CatFight.Tests
         }
 
         // ---------------------------------------------------------------
+        // 起点与开局分支（地图自下而上）
+        // ---------------------------------------------------------------
+
+        [Test]
+        public void Generate_StartNodeIsEmptyAndFirstRowBranches()
+        {
+            for (int seed = 1; seed <= 200; seed++)
+            {
+                var map = MapGenerator.Generate(seed, _config);
+
+                // 起点必须是空节点
+                Assert.AreEqual(1, map.RowCount(0), $"seed {seed} 起点应有且仅有 1 个节点");
+                var start = map.GetNode(map.StartId);
+                Assert.AreEqual(NodeType.Start, start.type, $"seed {seed} 起点类型应为 Start");
+
+                // 起点上方第一行必须是两条路
+                Assert.AreEqual(2, map.RowCount(1), $"seed {seed} 第一行分支数应为 2");
+
+                // 起点必须连到第一行两个节点
+                Assert.AreEqual(2, start.next.Count, $"seed {seed} 起点应连出 2 条边");
+
+                // 坐标：行号越大 y 越大（自下而上）
+                for (int r = 0; r + 1 < map.rowCount; r++)
+                {
+                    var a = map.GetNode(map.NodeIdAt(r, 0));
+                    var b = map.GetNode(map.NodeIdAt(r + 1, 0));
+                    Assert.Greater(b.pos.y, a.pos.y,
+                        $"seed {seed} 第 {r + 1} 行应位于第 {r} 行上方（y 递增）");
+                }
+            }
+        }
+
+        // ---------------------------------------------------------------
         // 配置矛盾必须被拦住，而不是留到运行时随机失败
         // ---------------------------------------------------------------
 
