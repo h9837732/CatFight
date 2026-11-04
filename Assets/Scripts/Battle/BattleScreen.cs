@@ -19,8 +19,9 @@ namespace CatFight.Battle
     {
         private const float CardW = 200f;
         private const float CardH = 280f;
-        private const float HandSpan = 1180f;
+        private const float HandSpan = 1240f;
         private const float CardGap = 10f;
+        private const float ArcHeight = 22f;     // 中间牌擑起高度，让叠压有层次
         private const float EnemyWidth = 240f;
 
         private Canvas _canvas;
@@ -45,6 +46,7 @@ namespace CatFight.Battle
 
         private readonly List<EnemyView> _enemyViews = new List<EnemyView>();
         private readonly List<CardView> _cardViews = new List<CardView>();
+        private RectTransform _relicTip;
 
         private int _selectedHandIndex = -1;
         private bool _busy;
@@ -118,6 +120,13 @@ namespace CatFight.Battle
 
             RebuildEnemies();
             RefreshAll();
+
+            // 入场过渡：全屏先模糊后清晰（仅在从地图进入战斗时播放）
+            if (_request != null && _request.sourceNodeId >= 0)
+            {
+                var intro = gameObject.AddComponent<ScreenBlurIntro>();
+                intro.Play(_canvas.transform);
+            }
         }
 
         /// <summary>战斗开始时的遗物钩子。</summary>
@@ -203,6 +212,7 @@ namespace CatFight.Battle
             UiKit.Stretch(_root);
 
             BuildTopBar();
+            BuildRelicBar();
             BuildPlayerPanel();
             BuildEnemyArea();
             BuildHandArea();
@@ -256,26 +266,27 @@ namespace CatFight.Battle
             root.anchoredPosition = new Vector2(0f, 0f);
             root.sizeDelta = new Vector2(380f, 1080f);
 
-            const float W = 340f;
+            const float W = 236f;
             const float BarY = 96f;        // 血条底边高度
             const float EnergyY = 34f;     // 行动点区域底边高度
+            const float PortraitH = 380f;  // 立绘高度（不超过血条上方空间）
 
-            // --- 立绘（图片）。左边缘出屏、底边贴血条上方，中间不留空隙 ---
+            // --- 立绘（图片）。左下角、左边缘微出屏、底边贴血条上方 ---
             var portrait = UiKit.CreateImage(root, "PlayerPortrait", Color.white, UiKit.Portrait);
             portrait.preserveAspect = true;
             UI.Assets2.ApplyWhiteKey(portrait, 0.80f, 0.14f);
             var prt = portrait.rectTransform;
             prt.anchorMin = prt.anchorMax = new Vector2(0f, 0f);
             prt.pivot = new Vector2(0f, 0f);
-            prt.anchoredPosition = new Vector2(-26f, BarY + 40f);
-            prt.sizeDelta = new Vector2(W + 26f, 1080f - BarY - 40f);
+            prt.anchoredPosition = new Vector2(-10f, BarY + 44f);
+            prt.sizeDelta = new Vector2(W + 10f, PortraitH);
 
             // 格挡徽章（叠在立绘右上角）
             var blockCircle = UiKit.CreateImage(root, "BlockCircle", Theme.BlockBlue, UiKit.Circle);
             var brt = blockCircle.rectTransform;
             brt.anchorMin = brt.anchorMax = new Vector2(0f, 0f);
             brt.pivot = new Vector2(0.5f, 0f);
-            brt.anchoredPosition = new Vector2(W - 44f, 380f);
+            brt.anchoredPosition = new Vector2(W - 40f, BarY + 44f + PortraitH - 76f);
             brt.sizeDelta = new Vector2(86f, 86f);
 
             _playerBlockText = UiKit.CreateText(blockCircle.transform, "Val", "0", Theme.FontHead, Color.white);
@@ -285,7 +296,7 @@ namespace CatFight.Battle
             var bct = blockCap.rectTransform;
             bct.anchorMin = bct.anchorMax = new Vector2(0f, 0f);
             bct.pivot = new Vector2(0.5f, 1f);
-            bct.anchoredPosition = new Vector2(W - 44f, 376f);
+            bct.anchoredPosition = new Vector2(W - 40f, BarY + 44f + PortraitH - 80f);
             bct.sizeDelta = new Vector2(86f, 22f);
 
             // --- 血条（贴屏幕底部区域，位于立绘下方）---
@@ -295,16 +306,16 @@ namespace CatFight.Battle
             plrt.anchorMin = plrt.anchorMax = new Vector2(0f, 0f);
             plrt.pivot = new Vector2(0f, 0f);
             plrt.anchoredPosition = new Vector2(12f, BarY - 6f);
-            plrt.sizeDelta = new Vector2(316f, 46f);
+            plrt.sizeDelta = new Vector2(264f, 46f);
             hpPlate.raycastTarget = false;
 
             var hbrt = UiKit.CreateRect(root, "HpBarRoot");
             hbrt.anchorMin = hbrt.anchorMax = new Vector2(0f, 0f);
             hbrt.pivot = new Vector2(0f, 0f);
             hbrt.anchoredPosition = new Vector2(20f, BarY);
-            hbrt.sizeDelta = new Vector2(300f, 34f);
+            hbrt.sizeDelta = new Vector2(248f, 34f);
 
-            _playerHpFill = UiKit.CreateProgressBar(hbrt, "Hp", new Vector2(300f, 34f),
+            _playerHpFill = UiKit.CreateProgressBar(hbrt, "Hp", new Vector2(248f, 34f),
                 Theme.HpBack, Theme.HpRed, segments: 8);
             var barRoot = _playerHpFill.transform.parent.GetComponent<RectTransform>();
             UiKit.Stretch(barRoot);
@@ -327,14 +338,14 @@ namespace CatFight.Battle
             var evrt = _energyText.rectTransform;
             evrt.anchorMin = evrt.anchorMax = new Vector2(0f, 0f);
             evrt.pivot = new Vector2(1f, 0f);
-            evrt.anchoredPosition = new Vector2(320f, EnergyY + 40f);
+            evrt.anchoredPosition = new Vector2(268f, EnergyY + 40f);
             evrt.sizeDelta = new Vector2(90f, 22f);
 
             _energyRow = UiKit.CreateRect(root, "EnergyRow");
             _energyRow.anchorMin = _energyRow.anchorMax = new Vector2(0f, 0f);
             _energyRow.pivot = new Vector2(0f, 0f);
             _energyRow.anchoredPosition = new Vector2(20f, EnergyY);
-            _energyRow.sizeDelta = new Vector2(300f, 38f);
+            _energyRow.sizeDelta = new Vector2(248f, 38f);
 
             // --- 状态（叠在血条上方，不要底板）---
             _playerStatusText = UiKit.CreateText(root, "Statuses", "", Theme.FontTiny,
@@ -343,12 +354,108 @@ namespace CatFight.Battle
             srt.anchorMin = srt.anchorMax = new Vector2(0f, 0f);
             srt.pivot = new Vector2(0f, 0f);
             srt.anchoredPosition = new Vector2(20f, BarY + 44f);
-            srt.sizeDelta = new Vector2(300f, 34f);
+            srt.sizeDelta = new Vector2(248f, 34f);
             _playerStatusText.lineSpacing = 1.15f;
         }
 
         /// <summary>敌人区。不再是居中矩形，而是覆盖全屏的坐标容器，
         /// 具体站位由 EnemyLayout 按背景地平线计算（脚底落地）。</summary>
+        /// <summary>
+        /// 战斗界面左上角的遗物栏。玩家立绘缩小后左下腾出的空间留给它，
+        /// 后续装备/道具栏也接在这排下方。
+        /// </summary>
+        private void BuildRelicBar()
+        {
+            var root = UiKit.CreateRect(_root, "RelicBar");
+            root.anchorMin = root.anchorMax = new Vector2(0f, 1f);
+            root.pivot = new Vector2(0f, 1f);
+            root.anchoredPosition = new Vector2(32f, -104f);
+            root.sizeDelta = new Vector2(420f, 64f);
+
+            var run = GameSession.Instance != null ? GameSession.Instance.Run : null;
+            if (run == null || run.relics.Count == 0) return;
+
+            const float IconSize = 56f;
+            const float Spacing = 8f;
+            const int MaxVisible = 6;
+
+            int shown = Mathf.Min(run.relics.Count, MaxVisible);
+            for (int i = 0; i < shown; i++)
+            {
+                string id = run.relics[i];
+
+                var bg = UiKit.CreateImage(root, "Relic" + i, Theme.PanelBg.WithAlpha(0.78f), UiKit.Circle);
+                var rt = bg.rectTransform;
+                rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
+                rt.pivot = new Vector2(0f, 1f);
+                rt.anchoredPosition = new Vector2(i * (IconSize + Spacing), 0f);
+                rt.sizeDelta = new Vector2(IconSize, IconSize);
+
+                // 遗物无图标素材：用首字占位
+                string name = Battle.RelicDb.NameOf(id);
+                var glyph = UiKit.CreateText(bg.transform, "Glyph",
+                    string.IsNullOrEmpty(name) ? "?" : name.Substring(0, 1),
+                    Theme.FontSmall, Theme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+                UiKit.Stretch(glyph.rectTransform);
+
+                var btn = bg.gameObject.AddComponent<Button>();
+                btn.targetGraphic = bg;
+                string desc = Battle.RelicDb.DescOf(id);
+                string title = name;
+                btn.onClick.AddListener(() => ShowRelicTip(title, desc));
+            }
+
+            if (run.relics.Count > MaxVisible)
+            {
+                var more = UiKit.CreateText(root, "More", $"+{run.relics.Count - MaxVisible}",
+                    Theme.FontSmall, Theme.Paper, TextAnchor.MiddleCenter);
+                var mrt = more.rectTransform;
+                mrt.anchorMin = mrt.anchorMax = new Vector2(0f, 1f);
+                mrt.pivot = new Vector2(0f, 1f);
+                mrt.anchoredPosition = new Vector2(MaxVisible * (IconSize + Spacing), 12f);
+                mrt.sizeDelta = new Vector2(70f, 32f);
+            }
+        }
+
+        /// <summary>点遗物弹出的说明（战斗内轻量提示，不阻断操作）。</summary>
+        private void ShowRelicTip(string title, string desc)
+        {
+            if (_relicTip != null) Destroy(_relicTip);
+
+            var go = UiKit.CreateRect(_canvas.transform, "RelicTip");
+            _relicTip = go;
+            go.anchorMin = go.anchorMax = new Vector2(0f, 1f);
+            go.pivot = new Vector2(0f, 1f);
+            go.anchoredPosition = new Vector2(32f, -176f);
+            go.sizeDelta = new Vector2(360f, 96f);
+
+            var bg = UiKit.CreatePanel(go, "Bg", Theme.PanelBg.WithAlpha(0.95f));
+            UiKit.Stretch(bg.rectTransform);
+
+            var t = UiKit.CreateText(go, "Title", title, Theme.FontSmall, Theme.Gold,
+                TextAnchor.UpperLeft, FontStyle.Bold);
+            var trt = t.rectTransform;
+            trt.anchorMin = new Vector2(0f, 1f);
+            trt.anchorMax = new Vector2(1f, 1f);
+            trt.pivot = new Vector2(0.5f, 1f);
+            trt.offsetMin = new Vector2(14f, -40f);
+            trt.offsetMax = new Vector2(-14f, -8f);
+
+            var d = UiKit.CreateText(go, "Desc", desc, Theme.FontTiny, Theme.Paper, TextAnchor.UpperLeft);
+            var drt = d.rectTransform;
+            UiKit.Stretch(drt, 14f);
+            drt.offsetMax = new Vector2(-14f, -40f);
+            d.lineSpacing = 1.15f;
+
+            CancelInvoke(nameof(HideRelicTip));
+            Invoke(nameof(HideRelicTip), 2.5f);
+        }
+
+        private void HideRelicTip()
+        {
+            if (_relicTip != null) { Destroy(_relicTip); _relicTip = null; }
+        }
+
         private void BuildEnemyArea()
         {
             _enemyRow = UiKit.CreateRect(_root, "EnemyRow");
@@ -511,18 +618,25 @@ namespace CatFight.Battle
             _cardViews.Clear();
 
             int n = _state.Hand.Count;
+
+            // ---- 布局：一排错叠。张数越多叠得越紧，但每张仍露出左侧费用与顶部卡名 ----
             float step = n <= 1 ? 0f : Mathf.Min(CardW + CardGap, (HandSpan - CardW) / (n - 1));
             float total = CardW + step * Mathf.Max(0, n - 1);
 
             for (int i = 0; i < n; i++)
             {
                 var card = _state.Hand[i];
+
                 float x = -total * 0.5f + CardW * 0.5f + i * step;
+
+                // 中间擑起：让叠压的牌也能看出层次（越靠中间越高）
+                float p = n <= 1 ? 0.5f : (float)i / (n - 1);
+                float arc = ArcHeight * (1f - Mathf.Pow(2f * p - 1f, 2f));
 
                 var root = UiKit.CreateRect(_handRow, "Card" + i);
                 root.anchorMin = root.anchorMax = new Vector2(0.5f, 0f);
                 root.pivot = new Vector2(0.5f, 0f);
-                root.anchoredPosition = new Vector2(x, 0f);
+                root.anchoredPosition = new Vector2(x, arc);
                 root.sizeDelta = new Vector2(CardW, CardH);
 
                 Color typeColor = card.Data.type == CardType.Attack ? Theme.Attack
@@ -635,7 +749,7 @@ namespace CatFight.Battle
                 _cardViews.Add(new CardView
                 {
                     handIndex = i, root = root, bg = bg, cost = costT, name = nameT, desc = descT,
-                    hint = hint, button = btn, baseY = 0f
+                    hint = hint, button = btn, baseY = arc
                 });
             }
 
@@ -770,29 +884,64 @@ namespace CatFight.Battle
 
             var card = _state.Hand[handIndex];
 
-            // ---- 防误触 ----
-            // 规则：第一下永远只“进入待打出”（牌抬起 + 高亮），不会直接出牌。
-            //   · 已选中另一张牌 → 改成选中新的那张，不打出任何牌
-            //   · 再点一次同一张牌 → 才真正打出（有目标牌仍需再点敌人）
+            // ---- 防误触（0.8 秒确认窗口）----
+            // 第一次点击：选中并抬手，同时开始计时
+            //   · 0.8 秒内再点同一张 → 确认打出
+            //   · 超过 0.8 秒再点同一张 → 视为取消（不打出）
+            //   · 点其他牌 → 只切换选中，任何牌都不打出
             if (_selectedHandIndex != handIndex)
             {
-                _selectedHandIndex = handIndex;
+                SelectCard(handIndex);
+                return;
+            }
+
+            if (!IsWithinConfirmWindow())
+            {
+                // 窗口已过：本次点击只做“取消”
+                ClearSelection();
+                return;
+            }
+
+            // 窗口内二次点击 = 确认
+            if (card.Data.target == TargetMode.SingleEnemy)
+            {
+                // 需要目标：保持选中，等待点击敌人
+                _selectedAt = Time.unscaledTime;   // 重新计时，方便瞄准
                 ApplySelectionHighlight();
                 return;
             }
 
-            // 同一张牌被第二次点击
-            if (card.Data.target == TargetMode.SingleEnemy)
-            {
-                // 需要目标：保持选中，等待点击敌人（牌上会提示“选择目标”）
-                return;
-            }
-
-            // 无目标牌：此时才打出
-            _selectedHandIndex = -1;
+            // 无目标牌：打出
+            ClearSelection();
             _state.PlayCard(handIndex, 0);
             AfterPlayerAction();
         }
+
+        /// <summary>选中一张牌，并在 0.8 秒后自动取消。</summary>
+        private void SelectCard(int handIndex)
+        {
+            _selectedHandIndex = handIndex;
+            _selectedAt = Time.unscaledTime;
+            ApplySelectionHighlight();
+            CancelInvoke(nameof(ClearSelection));
+            Invoke(nameof(ClearSelection), ConfirmWindow);
+        }
+
+        /// <summary>取消选中（超时或手动）。</summary>
+        private void ClearSelection()
+        {
+            CancelInvoke(nameof(ClearSelection));
+            if (_selectedHandIndex < 0) return;
+            _selectedHandIndex = -1;
+            ApplySelectionHighlight();
+        }
+
+        private bool IsWithinConfirmWindow()
+            => Time.unscaledTime - _selectedAt <= ConfirmWindow;
+
+        /// <summary>选中后的确认时间窗口（秒）。见需求：“0.8 秒内点同一张算确认”。</summary>
+        private const float ConfirmWindow = 0.8f;
+        private float _selectedAt;
 
         private void OnEnemyClicked(int enemyIndex)
         {
@@ -800,7 +949,7 @@ namespace CatFight.Battle
             if (_selectedHandIndex < 0) return;
 
             int handIdx = _selectedHandIndex;
-            _selectedHandIndex = -1;
+            ClearSelection();
 
             if (!_state.PlayCard(handIdx, enemyIndex))
             {
@@ -819,7 +968,7 @@ namespace CatFight.Battle
         private void OnEndTurn()
         {
             if (_busy || _state.Phase != BattlePhase.PlayerAction) return;
-            _selectedHandIndex = -1;
+            ClearSelection();
             StartCoroutine(EnemyTurnRoutine());
         }
 
@@ -865,10 +1014,7 @@ namespace CatFight.Battle
         private void Update()
         {
             if (InputCompat.KeyDown(Key.Escape) && _selectedHandIndex >= 0)
-            {
-                _selectedHandIndex = -1;
-                ApplySelectionHighlight();
-            }
+                ClearSelection();
 
             if (InputCompat.KeyDown(Key.E) && _state != null && _state.Phase == BattlePhase.PlayerAction && !_busy)
                 OnEndTurn();
@@ -878,7 +1024,7 @@ namespace CatFight.Battle
         // 调试接口（开发期用，不参与玩法）
         // ------------------------------------------------------------------
 
-        /// <summary>尽可能把手上能打的牌全部打掉，返回打出张数。</summary>
+        /// <summary>把手上能打的牌全部打掉，返回打出张数。</summary>
         public int DebugPlayAllCards()
         {
             if (_state == null) return 0;
@@ -918,6 +1064,15 @@ namespace CatFight.Battle
 
             RefreshAll();
             return played;
+        }
+
+        /// <summary>调试：额外抽指定张数（用于验证 6~10 张手牌布局）。</summary>
+        public int DebugDraw(int count)
+        {
+            if (_state == null) return 0;
+            int drawn = _state.DrawCards(count);
+            RefreshAll();
+            return drawn;
         }
 
         /// <summary>当前战斗概况（调试用）。</summary>

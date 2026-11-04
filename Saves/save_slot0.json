@@ -1,17 +1,16 @@
 {
     "version": 1,
-    "seed": 31481390,
+    "seed": 33704078,
     "generatorVersion": 1,
     "visitedPath": [
         0,
-        100,
-        200
+        101
     ],
     "act": 1,
     "characterId": "ironclad",
     "hp": 80,
     "maxHp": 80,
-    "gold": 199,
+    "gold": 99,
     "deck": [
         {
             "id": "strike",
@@ -55,6 +54,6 @@
         }
     ],
     "relics": [
-        "relic_purse"
+        "relic_pocket_watch"
     ]
 }

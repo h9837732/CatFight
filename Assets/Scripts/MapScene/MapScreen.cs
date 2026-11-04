@@ -46,6 +46,7 @@ namespace CatFight.MapScene
             public Text label;
             public Button button;
             public bool hasArt;    // 有正式猫图素材
+            public RectTransform marker;   // 当前所在位置指示器
         }
 
         // ------------------------------------------------------------------
@@ -304,8 +305,43 @@ namespace CatFight.MapScene
             return new NodeWidget
             {
                 root = root, circle = circle, ring = ring, glyph = glyph, icon = icon, label = label,
-                button = btn, hasArt = nodeSprite != null
+                button = btn, hasArt = nodeSprite != null, marker = CreateMarker(parent, node, size)
             };
+        }
+
+        /// <summary>
+        /// “我在这里”指示器：节点下方一个下指三角 + “当前位置” 字样。
+        /// 默认隐藏，只在玩家所在节点显示。
+        /// </summary>
+        private RectTransform CreateMarker(Transform parent, MapNode node, float size)
+        {
+            var marker = UiKit.CreateRect(parent, "Marker_" + node.id);
+            marker.anchorMin = marker.anchorMax = new Vector2(0.5f, 0.5f);
+            marker.pivot = new Vector2(0.5f, 1f);
+            marker.sizeDelta = new Vector2(180f, 56f);
+            marker.anchoredPosition = node.pos + new Vector2(0f, -(size * 0.5f + 34f));
+
+            // 下指三角（用旋转的方形模拟）
+            var tri = UiKit.CreateImage(marker, "Arrow", Theme.Boss);
+            var trt = tri.rectTransform;
+            trt.anchorMin = trt.anchorMax = new Vector2(0.5f, 1f);
+            trt.pivot = new Vector2(0.5f, 1f);
+            trt.anchoredPosition = new Vector2(0f, 0f);
+            trt.sizeDelta = new Vector2(17f, 17f);
+            trt.localEulerAngles = new Vector3(0f, 0f, 45f);
+            tri.raycastTarget = false;
+
+            var txt = UiKit.CreateOutlinedText(marker, "Text", "当前位置", Theme.FontTiny,
+                Theme.Boss, Theme.Paper, TextAnchor.MiddleCenter, FontStyle.Bold);
+            var xtrt = txt.rectTransform;
+            xtrt.anchorMin = new Vector2(0f, 1f);
+            xtrt.anchorMax = new Vector2(1f, 1f);
+            xtrt.pivot = new Vector2(0.5f, 1f);
+            xtrt.anchoredPosition = new Vector2(0f, -16f);
+            xtrt.sizeDelta = new Vector2(0f, 26f);
+
+            marker.gameObject.SetActive(false);
+            return marker;
         }
 
         // ------------------------------------------------------------------
@@ -361,6 +397,9 @@ namespace CatFight.MapScene
 
                 Color typeColor = Theme.ColorFor(node.type);
 
+                // 当前位置指示器：只在玩家所在节点显示
+                if (w.marker != null) w.marker.gameObject.SetActive(isCurrent);
+
                 if (isCrossedOut)
                 {
                     if (!w.hasArt) w.circle.color = Theme.PaperDark.WithAlpha(0.55f);
@@ -379,8 +418,7 @@ namespace CatFight.MapScene
                     w.label.color = Theme.Ink;
                     w.ring.color = typeColor.WithAlpha(0.55f);
                     w.button.interactable = false;
-                }
-                else if (isAvailable)
+                }                else if (isAvailable)
                 {
                     if (!w.hasArt) w.circle.color = Theme.Paper;
                     TintGlyph(w, typeColor);
