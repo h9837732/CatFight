@@ -1,0 +1,73 @@
+# ---------------------------------------------------------------
+# Unity 工程通用 .gitignore (CatFight)
+# 规则：只提交 Assets / Packages / ProjectSettings 及工程配置，
+#       其余全部由 Unity 本地重新生成。
+# ---------------------------------------------------------------
+
+# --- Unity 生成目录 ---
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+/[Aa]ssets/AssetStoreTools*
+/[Aa]ssets/StreamingAssets/aa*
+/[Aa]ssets/Addressables_Temp/
+
+# --- 自动生成的工程文件（由 Unity 重新生成）---
+*.csproj
+*.unityproj
+*.sln
+*.slnx
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+*.DotSettings.user
+.vs/
+.idea/
+.vsconfig
+sysinfo.txt
+
+# --- 构建产物 ---
+*.apk
+*.aab
+*.unitypackage
+*.app
+*.ipa
+*.exe
+*.dll.meta
+crashlytics-build.properties
+/[Aa]ssets/[Aa]ssetStoreTools*
+
+# --- 本地缓存 / 日志 / 临时文件 ---
+*.log
+*.bak
+*.orig
+*.rej
+*.swp
+*~
+.DS_Store
+Thumbs.db
+/[Aa]ssets/**/*.meta.bak
+
+# --- 本地私有配置（不要提交）---
+/UserSettings/
+/LocalPackages/
+*.secret
+.env
+.env.local

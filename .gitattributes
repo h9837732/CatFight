@@ -1,0 +1,60 @@
+# 默认：按内容自动判定文本 / 二进制
+* text=auto
+
+# --- 需要 Git LFS 的大文件（美术 / 音频 / 模型 / 视频）---
+*.png  filter=lfs diff=lfs merge=lfs -text
+*.jpg  filter=lfs diff=lfs merge=lfs -text
+*.jpeg filter=lfs diff=lfs merge=lfs -text
+*.tga  filter=lfs diff=lfs merge=lfs -text
+*.tif  filter=lfs diff=lfs merge=lfs -text
+*.tiff filter=lfs diff=lfs merge=lfs -text
+*.psd  filter=lfs diff=lfs merge=lfs -text
+*.psb  filter=lfs diff=lfs merge=lfs -text
+*.ai   filter=lfs diff=lfs merge=lfs -text
+*.aseprite filter=lfs diff=lfs merge=lfs -text
+*.ase  filter=lfs diff=lfs merge=lfs -text
+
+*.wav  filter=lfs diff=lfs merge=lfs -text
+*.mp3  filter=lfs diff=lfs merge=lfs -text
+*.ogg  filter=lfs diff=lfs merge=lfs -text
+*.flac filter=lfs diff=lfs merge=lfs -text
+
+*.fbx  filter=lfs diff=lfs merge=lfs -text
+*.obj  filter=lfs diff=lfs merge=lfs -text
+*.blend filter=lfs diff=lfs merge=lfs -text
+*.ma   filter=lfs diff=lfs merge=lfs -text
+*.mb   filter=lfs diff=lfs merge=lfs -text
+*.max  filter=lfs diff=lfs merge=lfs -text
+
+*.mp4  filter=lfs diff=lfs merge=lfs -text
+*.mov  filter=lfs diff=lfs merge=lfs -text
+*.webm filter=lfs diff=lfs merge=lfs -text
+
+*.ttf  filter=lfs diff=lfs merge=lfs -text
+*.otf  filter=lfs diff=lfs merge=lfs -text
+
+*.unitypackage filter=lfs diff=lfs merge=lfs -text
+
+# --- 文本文件统一 LF，避免 Windows / macOS 换行冲突 ---
+*.cs      text eol=lf
+*.shader  text eol=lf
+*.hlsl    text eol=lf
+*.cginc   text eol=lf
+*.compute text eol=lf
+*.json    text eol=lf
+*.md      text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+*.txt     text eol=lf
+*.asmdef  text eol=lf
+*.csproj  text eol=lf
+*.slnx    text eol=lf
+
+# Unity 序列化文件（YAML）：保留原换行，避免无意义 diff
+*.unity   -text
+*.prefab  -text
+*.asset   -text
+*.mat     -text
+*.meta    -text
+*.controller -text
+*.anim    -text
