@@ -47,6 +47,7 @@ namespace CatFight.Battle
         private Text _energyText;
         private RectTransform _energyRow;
         private Text _turnText;
+        private Text _handCountText;
         private Text _logText;
         private RectTransform _handRow;
         private Button _endTurnBtn;
@@ -280,6 +281,15 @@ namespace CatFight.Battle
             trt.pivot = new Vector2(0f, 0.5f);
             trt.anchoredPosition = new Vector2(36f, 0f);
             trt.sizeDelta = new Vector2(400f, 50f);
+
+            // 手牌计数：让“最多 10 张”的容量看得见
+            _handCountText = UiKit.CreateText(bar.transform, "HandCount", "手牌 5/10", Theme.FontSmall,
+                Theme.Paper.WithAlpha(0.75f), TextAnchor.MiddleLeft);
+            var hrt = _handCountText.rectTransform;
+            hrt.anchorMin = hrt.anchorMax = new Vector2(0f, 0.5f);
+            hrt.pivot = new Vector2(0f, 0.5f);
+            hrt.anchoredPosition = new Vector2(220f, 0f);
+            hrt.sizeDelta = new Vector2(220f, 40f);
 
             var encName = _request.kind == GameSession.NodeKind.Boss ? "首领战"
                         : _request.kind == GameSession.NodeKind.Elite ? "精英战"
@@ -745,8 +755,8 @@ namespace CatFight.Battle
             root.anchorMin = new Vector2(1f, 1f);
             root.anchorMax = new Vector2(1f, 1f);
             root.pivot = new Vector2(1f, 1f);
-            root.anchoredPosition = new Vector2(-40f, -108f);
-            root.sizeDelta = new Vector2(400f, 170f);
+            root.anchoredPosition = new Vector2(-40f, -100f);
+            root.sizeDelta = new Vector2(400f, 240f);
 
             _logText = UiKit.CreateOutlinedText(root, "Log", "", Theme.FontTiny,
                 Theme.InkSoft, Theme.Paper, TextAnchor.LowerRight);
@@ -1179,6 +1189,12 @@ namespace CatFight.Battle
             if (_state == null) return;
 
             _turnText.text = $"第 {_state.TurnNumber} 回合";
+            if (_handCountText != null)
+            {
+                _handCountText.text = $"手牌 {_state.Hand.Count}/{BattleState.HandLimit}";
+                _handCountText.color = _state.Hand.Count >= BattleState.HandLimit
+                    ? Theme.Warn : Theme.Paper.WithAlpha(0.75f);
+            }
 
             // 玩家
             UiKit.SetBarFill(_playerHpFill, _state.Player.maxHp > 0 ? (float)_state.Player.hp / _state.Player.maxHp : 0f);
@@ -1263,10 +1279,24 @@ namespace CatFight.Battle
         private void OnLog(string line)
         {
             if (_logText == null) return;
+
+            // 只显示最近 6 “条”——连续的重复行合并成「×N」。
+            // 否则「手牌已满，本回合不抽牌」这类每回合重复的话会把整块文字顶出面板。
             var all = _state.Log;
-            int from = Mathf.Max(0, all.Count - 7);
             var sb = new System.Text.StringBuilder();
-            for (int i = from; i < all.Count; i++) sb.AppendLine(all[i]);
+            int shown = 0;
+            int i = all.Count - 1;
+            while (i >= 0 && shown < 6)
+            {
+                string cur = all[i];
+                int j = i;
+                while (j >= 0 && all[j] == cur) j--;
+                int repeat = i - j;
+
+                sb.Insert(0, repeat > 1 ? $"{cur}（×{repeat}）\n" : cur + "\n");
+                shown++;
+                i = j;
+            }
             _logText.text = sb.ToString();
         }
 

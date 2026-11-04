@@ -136,6 +136,20 @@ namespace CatFight.Battle
         public const int HandLimit = 10;
         public const int DrawPerTurn = 5;
 
+        /// <summary>
+        /// 回合结束的手牌处理策略。
+        /// A 弃光 = 每回合固定 5 张（传统杀戮尖塔手感）；
+        /// B 保留 = 手牌跨回合累积，最多到 HandLimit（本项目默认）。
+        /// </summary>
+        public enum HandPolicy
+        {
+            DiscardAll,
+            KeepAll
+        }
+
+        /// <summary>默认保留，手牌才会真正累积到 10 张。</summary>
+        public HandPolicy handPolicy = HandPolicy.KeepAll;
+
         public BattleUnit Player { get; private set; }
         public List<EnemyUnit> Enemies { get; private set; } = new List<EnemyUnit>();
 
@@ -223,8 +237,11 @@ namespace CatFight.Battle
             TurnNumber++;
             Phase = BattlePhase.PlayerTurnStart;
 
-            // 0. 上一回合保留的手牌现在才弃掉（结束回合时手牌不消失，见需求）
-            if (Hand.Count > 0)
+            // 0. 回合结束的手牌处理：
+            //    KeepAll（默认）→ 手牌跨回合保留，最多累到 HandLimit(10)；
+            //    DiscardAll     → 开局前先清空，每回合重新抽 5 张。
+            // 之所以把弃牌放在这里而不是 EndTurn：结束回合时手牌不消失，看得见更直观。
+            if (handPolicy == HandPolicy.DiscardAll && Hand.Count > 0)
             {
                 DiscardPile.AddRange(Hand);
                 Hand.Clear();
@@ -245,8 +262,18 @@ namespace CatFight.Battle
                 LogLine($"中毒发作，失去 {poison} 点生命");
             }
 
-            // 4. 抽牌
-            DrawCards(DrawPerTurn);
+            // 4. 抽牌。
+            //    KeepAll 下按空位抽：手牌 8 张就只抽 2 张，满 10 张就不再抽，
+            //    避免把手牌溢出的牌白白烧进弃牌堆。
+            int drawN = DrawPerTurn;
+            if (handPolicy == HandPolicy.KeepAll)
+            {
+                int space = HandLimit - Hand.Count;
+                drawN = space <= 0 ? 0 : Math.Min(DrawPerTurn, space);
+                if (drawN < DrawPerTurn)
+                    LogLine(drawN == 0 ? "手牌已满，本回合不抽牌" : $"手牌接近上限，本回合只抽 {drawN} 张");
+            }
+            DrawCards(drawN);
 
             // 5. 状态递减（易伤/虚弱/脆弱在回合结束时递减，这里不处理）
 

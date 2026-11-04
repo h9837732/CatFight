@@ -1,24 +1,16 @@
 {
     "version": 1,
-    "seed": 36559140,
+    "seed": 37334500,
     "generatorVersion": 1,
     "visitedPath": [
         0,
-        101,
-        201,
-        300,
-        400,
-        500,
-        600,
-        700,
-        800,
-        900
+        100
     ],
     "act": 1,
     "characterId": "ironclad",
     "hp": 80,
     "maxHp": 80,
-    "gold": 140,
+    "gold": 99,
     "deck": [
         {
             "id": "strike",
@@ -62,11 +54,9 @@
         }
     ],
     "relics": [
-        "relic_burning_blood",
-        "relic_placeholder_1"
+        "relic_lantern"
     ],
     "items": [
-        "item_heal_potion",
-        "item_strength_potion"
+        "item_heal_potion"
     ]
 }
