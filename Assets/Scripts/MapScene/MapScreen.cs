@@ -42,8 +42,10 @@ namespace CatFight.MapScene
             public Image circle;
             public Image ring;
             public Text glyph;
+            public Image icon;
             public Text label;
             public Button button;
+            public bool hasArt;    // 有正式猫图素材
         }
 
         // ------------------------------------------------------------------
@@ -240,24 +242,43 @@ namespace CatFight.MapScene
             root.sizeDelta = new Vector2(size, size);
             root.anchoredPosition = node.pos;
 
+            // 地图节点：有猫图素材时用图，背景保持透明（不要米色圆底）
+            var nodeSprite = Assets2.NodeSprite(node.type);
+
             // 外发光环（可前往时显示）
             var ring = UiKit.CreateImage(root, "Ring", typeColor.WithAlpha(0f), UiKit.Ring);
             UiKit.Stretch(ring.rectTransform, -14f);
             ring.raycastTarget = false;
 
-            // 圆底
+            // 圆底（普通节点用；有猫图时隐藏）
             var circle = UiKit.CreateImage(root, "Circle", Theme.Paper, UiKit.Circle, raycast: true);
             UiKit.Stretch(circle.rectTransform);
+            if (nodeSprite != null) circle.color = Color.clear;
 
-            // 描边
+            // 描边（有猫图时也不要，避免图被圆环拑住）
             var border = UiKit.CreateImage(root, "Border", typeColor, UiKit.Ring);
             UiKit.Stretch(border.rectTransform, 0f);
             border.raycastTarget = false;
+            if (nodeSprite != null) border.color = Color.clear;
 
-            // 类型字（占位图标）
-            var glyph = UiKit.CreateText(root, "Glyph", Theme.GlyphFor(node.type),
-                isBoss ? Theme.FontHead : Theme.FontBody, typeColor, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.Stretch(glyph.rectTransform);
+            // 地图节点图标：有图用图，否则用类型字
+            Text glyph = null;
+            Image icon = null;
+
+            if (nodeSprite != null)
+            {
+                icon = UiKit.CreateImage(root, "Icon", Color.white, nodeSprite);
+                icon.preserveAspect = true;
+                icon.raycastTarget = false;
+                Assets2.ApplyWhiteKey(icon, 0.78f, 0.16f);
+                UiKit.Stretch(icon.rectTransform, -size * 0.10f);   // 略超出节点尺寸，让猫图更大
+            }
+            else
+            {
+                glyph = UiKit.CreateText(root, "Glyph", Theme.GlyphFor(node.type),
+                    isBoss ? Theme.FontHead : Theme.FontBody, typeColor, TextAnchor.MiddleCenter, FontStyle.Bold);
+                UiKit.Stretch(glyph.rectTransform);
+            }
 
             // 类型名（可前往 / 当前节点常显，见设计文档 §7.7）
             var label = UiKit.CreateText(parent, "Label_" + node.id, Theme.NameFor(node.type),
@@ -282,13 +303,32 @@ namespace CatFight.MapScene
 
             return new NodeWidget
             {
-                root = root, circle = circle, ring = ring, glyph = glyph, label = label, button = btn
+                root = root, circle = circle, ring = ring, glyph = glyph, icon = icon, label = label,
+                button = btn, hasArt = nodeSprite != null
             };
         }
 
         // ------------------------------------------------------------------
         // 状态刷新
         // ------------------------------------------------------------------
+
+        /// <summary>给节点图标上色（文字与图片两种实现都兼容）。</summary>
+        private static void TintGlyph(NodeWidget w, Color c)
+        {
+            if (w.hasArt)
+            {
+                // 有素材图时不染类型色（会毁掉猫的颜色），只通过透明度区分状态
+                if (w.icon != null)
+                {
+                    float a = Mathf.Clamp01(c.a > 0.02f ? Mathf.Max(0.35f, c.a) : 0.35f);
+                    w.icon.color = new Color(1f, 1f, 1f, a);
+                }
+            }
+            else if (w.glyph != null)
+            {
+                w.glyph.color = c;
+            }
+        }
 
         private void RefreshState()
         {
@@ -323,8 +363,8 @@ namespace CatFight.MapScene
 
                 if (isCrossedOut)
                 {
-                    w.circle.color = Theme.PaperDark.WithAlpha(0.55f);
-                    w.glyph.color = Theme.InkFaint.WithAlpha(0.45f);
+                    if (!w.hasArt) w.circle.color = Theme.PaperDark.WithAlpha(0.55f);
+                    TintGlyph(w, Theme.InkFaint.WithAlpha(0.45f));
                     w.root.localScale = Vector3.one * 0.82f;
                     w.label.text = "";
                     w.ring.color = typeColor.WithAlpha(0f);
@@ -332,8 +372,8 @@ namespace CatFight.MapScene
                 }
                 else if (isCurrent)
                 {
-                    w.circle.color = Theme.Paper;
-                    w.glyph.color = typeColor;
+                    if (!w.hasArt) w.circle.color = Theme.Paper;
+                    TintGlyph(w, typeColor);
                     w.root.localScale = Vector3.one * 1.12f;
                     w.label.text = Theme.NameFor(node.type);
                     w.label.color = Theme.Ink;
@@ -342,8 +382,8 @@ namespace CatFight.MapScene
                 }
                 else if (isAvailable)
                 {
-                    w.circle.color = Theme.Paper;
-                    w.glyph.color = typeColor;
+                    if (!w.hasArt) w.circle.color = Theme.Paper;
+                    TintGlyph(w, typeColor);
                     w.root.localScale = Vector3.one;
                     w.label.text = Theme.NameFor(node.type);
                     w.label.color = Theme.Ink;
@@ -352,8 +392,8 @@ namespace CatFight.MapScene
                 }
                 else if (isVisited)
                 {
-                    w.circle.color = Theme.PaperDark;
-                    w.glyph.color = typeColor.WithAlpha(0.35f);
+                    if (!w.hasArt) w.circle.color = Theme.PaperDark;
+                    TintGlyph(w, typeColor.WithAlpha(0.35f));
                     w.root.localScale = Vector3.one * 0.9f;
                     w.label.text = "";
                     w.ring.color = typeColor.WithAlpha(0f);
@@ -363,8 +403,8 @@ namespace CatFight.MapScene
                 {
                     // 尚未到达的远端节点：淡墨轮廓，但要保留可辨认的几个类型图标
                     bool far = node.row > currentRow + 2;
-                    w.circle.color = far ? Theme.PaperDark.WithAlpha(0.55f) : Theme.PaperDark;
-                    w.glyph.color = typeColor.WithAlpha(far ? 0.55f : 0.85f);
+                    if (!w.hasArt) w.circle.color = far ? Theme.PaperDark.WithAlpha(0.55f) : Theme.PaperDark;
+                    TintGlyph(w, typeColor.WithAlpha(far ? 0.55f : 0.85f));
                     w.root.localScale = Vector3.one * (far ? 0.86f : 0.92f);
                     w.label.text = far ? "" : Theme.NameFor(node.type);
                     w.label.color = Theme.InkFaint;

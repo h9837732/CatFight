@@ -1,6 +1,6 @@
 {
     "version": 1,
-    "seed": 20418000,
+    "seed": 30020156,
     "generatorVersion": 1,
     "visitedPath": [
         0,
@@ -54,6 +54,6 @@
         }
     ],
     "relics": [
-        "relic_burning_blood"
+        "relic_blood_vial"
     ]
 }

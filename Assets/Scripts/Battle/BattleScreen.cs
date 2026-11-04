@@ -19,7 +19,8 @@ namespace CatFight.Battle
     {
         private const float CardW = 200f;
         private const float CardH = 280f;
-        private const float HandSpan = 1000f;
+        private const float HandSpan = 1180f;
+        private const float CardGap = 10f;
         private const float EnemyWidth = 240f;
 
         private Canvas _canvas;
@@ -107,6 +108,9 @@ namespace CatFight.Battle
 
             _state.Start(run.seed + run.visitedPath.Count * 13, run.hp, run.maxHp, deck, encounter);
 
+            // 战斗音乐：开场音 → 循环曲
+            if (AudioDirector.Instance != null) AudioDirector.Instance.PlayBattle();
+
             // 遗物：战斗开始时生效
             ApplyBattleStartRelics(run);
 
@@ -158,6 +162,7 @@ namespace CatFight.Battle
                 _state.OnStateChanged -= RefreshAll;
                 _state.OnLogged -= OnLog;
             }
+            if (AudioDirector.Instance != null) AudioDirector.Instance.StopBattle();
         }
 
         // ------------------------------------------------------------------
@@ -168,8 +173,29 @@ namespace CatFight.Battle
         {
             _canvas = UiKit.CreateCanvas("BattleCanvas", 10);
 
-            var bg = UiKit.CreateImage(_canvas.transform, "Bg", Theme.Paper);
+            // 战斗背景（街道照片）。素材缺失时降级为纸色
+            var bgSprite = UI.Assets2.BattleBg;
+            var bg = UiKit.CreateImage(_canvas.transform, "Bg",
+                bgSprite != null ? Color.white : Theme.Paper, bgSprite);
+            bg.preserveAspect = false;
             UiKit.Stretch(bg.rectTransform);
+
+            // 顶部/底部压暗，保证文字可读
+            var topShade = UiKit.CreateImage(_canvas.transform, "ShadeTop", new Color(0f, 0f, 0f, 0.42f));
+            var tsrt = topShade.rectTransform;
+            tsrt.anchorMin = new Vector2(0f, 1f);
+            tsrt.anchorMax = new Vector2(1f, 1f);
+            tsrt.pivot = new Vector2(0.5f, 1f);
+            tsrt.sizeDelta = new Vector2(0f, 260f);
+            tsrt.anchoredPosition = Vector2.zero;
+
+            var bottomShade = UiKit.CreateImage(_canvas.transform, "ShadeBottom", new Color(0f, 0f, 0f, 0.5f));
+            var bsrt = bottomShade.rectTransform;
+            bsrt.anchorMin = new Vector2(0f, 0f);
+            bsrt.anchorMax = new Vector2(1f, 0f);
+            bsrt.pivot = new Vector2(0.5f, 0f);
+            bsrt.sizeDelta = new Vector2(0f, 340f);
+            bsrt.anchoredPosition = Vector2.zero;
 
             _root = UiKit.CreateRect(_canvas.transform, "Root");
             UiKit.Stretch(_root);
@@ -228,14 +254,15 @@ namespace CatFight.Battle
 
             const float W = 300f;
 
-            // --- 立绘（图片，不是文字）---
+            // --- 立绘（图片）。玩家图是竖图，用高度约束保证不裁切 ---
             var portrait = UiKit.CreateImage(root, "PlayerPortrait", Color.white, UiKit.Portrait);
             portrait.preserveAspect = true;
+            UI.Assets2.ApplyWhiteKey(portrait, 0.80f, 0.14f);
             var prt = portrait.rectTransform;
             prt.anchorMin = prt.anchorMax = new Vector2(0.5f, 0f);
             prt.pivot = new Vector2(0.5f, 0f);
             prt.anchoredPosition = new Vector2(0f, 176f);
-            prt.sizeDelta = new Vector2(W, W);
+            prt.sizeDelta = new Vector2(W, 300f);      // 宽度上限 300，高度由 preserveAspect 控制
 
             // 格挡徽章（叠在立绘右上角）
             var blockCircle = UiKit.CreateImage(root, "BlockCircle", Theme.BlockBlue, UiKit.Circle);
@@ -384,18 +411,29 @@ namespace CatFight.Battle
                 UiKit.Stretch(intentText.rectTransform, 4f);
 
                 // 敌人立绘占位
-                var portrait = UiKit.CreateImage(root, "Portrait", Theme.PaperDark, UiKit.Circle, raycast: true);
+                var enemySprite = UI.Assets2.Enemy(i);
+                var portrait = enemySprite != null
+                    ? UiKit.CreateImage(root, "Portrait", Color.white, enemySprite, raycast: true)
+                    : UiKit.CreateImage(root, "Portrait", Theme.PaperDark, UiKit.Circle, raycast: true);
+                portrait.preserveAspect = true;
                 var prt = portrait.rectTransform;
                 prt.anchorMin = prt.anchorMax = new Vector2(0.5f, 1f);
                 prt.pivot = new Vector2(0.5f, 1f);
-                prt.anchoredPosition = new Vector2(0f, -70f);
-                prt.sizeDelta = new Vector2(150f, 150f);
+                prt.anchoredPosition = new Vector2(0f, -64f);
+                prt.sizeDelta = new Vector2(160f, 160f);
 
-                var glyph = UiKit.CreateText(portrait.transform, "Glyph", "敌", Theme.FontTitle, Theme.Ink);
-                UiKit.Stretch(glyph.rectTransform);
+                if (enemySprite == null)
+                {
+                    var glyph = UiKit.CreateText(portrait.transform, "Glyph", "敌", Theme.FontTitle, Theme.Ink);
+                    UiKit.Stretch(glyph.rectTransform);
+                }
+                else
+                {
+                    UI.Assets2.ApplyWhiteKey(portrait, 0.80f, 0.14f);
+                }
 
-                var nameT = UiKit.CreateText(root, "Name", enemy.name, Theme.FontSmall, Theme.Ink,
-                    TextAnchor.MiddleCenter, FontStyle.Bold);
+                var nameT = UiKit.CreateOutlinedText(root, "Name", enemy.name, Theme.FontSmall, Color.white,
+                    new Color(0f, 0f, 0f, 0.8f), TextAnchor.MiddleCenter, FontStyle.Bold);
                 var nrt = nameT.rectTransform;
                 nrt.anchorMin = nrt.anchorMax = new Vector2(0.5f, 1f);
                 nrt.pivot = new Vector2(0.5f, 1f);
@@ -413,14 +451,16 @@ namespace CatFight.Battle
                     Theme.HpBack, Theme.HpRed);
                 UiKit.Stretch(fill.transform.parent.GetComponent<RectTransform>());
 
-                var hpText = UiKit.CreateText(root, "HpText", "", Theme.FontTiny, Theme.Ink);
+                var hpText = UiKit.CreateOutlinedText(root, "HpText", "", Theme.FontTiny, Color.white,
+                    new Color(0f, 0f, 0f, 0.85f));
                 var hptrt = hpText.rectTransform;
                 hptrt.anchorMin = hptrt.anchorMax = new Vector2(0.5f, 1f);
                 hptrt.pivot = new Vector2(0.5f, 1f);
                 hptrt.anchoredPosition = new Vector2(0f, -290f);
                 hptrt.sizeDelta = new Vector2(EnemyWidth, 26f);
 
-                var statusT = UiKit.CreateText(root, "Status", "", Theme.FontTiny, Theme.Gold);
+                var statusT = UiKit.CreateOutlinedText(root, "Status", "", Theme.FontTiny, Theme.Gold,
+                    new Color(0f, 0f, 0f, 0.85f));
                 var strt = statusT.rectTransform;
                 strt.anchorMin = strt.anchorMax = new Vector2(0.5f, 1f);
                 strt.pivot = new Vector2(0.5f, 1f);
@@ -457,7 +497,7 @@ namespace CatFight.Battle
             _cardViews.Clear();
 
             int n = _state.Hand.Count;
-            float step = n <= 1 ? 0f : Mathf.Min(CardW, (HandSpan - CardW) / (n - 1));
+            float step = n <= 1 ? 0f : Mathf.Min(CardW + CardGap, (HandSpan - CardW) / (n - 1));
             float total = CardW + step * Mathf.Max(0, n - 1);
 
             for (int i = 0; i < n; i++)
@@ -475,19 +515,61 @@ namespace CatFight.Battle
                                 : card.Data.type == CardType.Skill ? Theme.Skill
                                 : Theme.Power;
 
-                var bg = UiKit.CreatePanel(root, "Bg", typeColor);
-                UiKit.Stretch(bg.rectTransform);
+                // --- 卡面底纹（猫毛纹理）---
+                var bg = UiKit.CreateImage(root, "Bg", Color.white, UI.Assets2.CardBg);
+                var bgrt = bg.rectTransform;
+                UiKit.Stretch(bgrt);
+                bg.type = Image.Type.Simple;
                 bg.raycastTarget = true;
 
-                bool affordable = _state.Energy >= card.Cost && _state.PlayerTurnActive;
-                if (!affordable)
+                if (bg.sprite == null)
                 {
-                    // 不可打出：能量不足或非玩家回合（敌人回合中手牌保留但变暗）
-                    float k = _state.PlayerTurnActive ? 0.5f : 0.62f;
-                    bg.color = new Color(typeColor.r * k, typeColor.g * k, typeColor.b * k, 0.95f);
+                    // 素材缺失时的降级：纯色底
+                    bg.sprite = UiKit.RoundRect;
+                    bg.type = Image.Type.Sliced;
+                    bg.color = typeColor;
                 }
 
-                // 费用圆标
+                bool affordable = _state.Energy >= card.Cost && _state.PlayerTurnActive;
+                float dim = affordable ? 1f : (_state.PlayerTurnActive ? 0.5f : 0.62f);
+                bg.color = new Color(dim, dim, dim, 1f);
+
+                // --- 卡面主图（固定占上半部，不拉伸变形）---
+                var artSprite = UI.Assets2.CardArt(card.Data.type);
+                if (artSprite != null)
+                {
+                    var artArea = UiKit.CreateRect(root, "ArtArea");
+                    artArea.anchorMin = new Vector2(0f, 0.5f);   // 只占上半部分
+                    artArea.anchorMax = new Vector2(1f, 1f);
+                    artArea.offsetMin = new Vector2(4f, 2f);
+                    artArea.offsetMax = new Vector2(-4f, -4f);
+
+                    var art = UiKit.CreateImage(artArea, "Art", bg.color, artSprite);
+                    art.preserveAspect = true;      // 保持比例（不拉伸）
+                    art.raycastTarget = false;
+                    UI.Assets2.ApplyWhiteKey(art, 0.80f, 0.14f);
+                    UiKit.Stretch(art.rectTransform);
+                }
+
+                // 上半部淡入的暗色渐变，保证白字可读
+                var scrim = UiKit.CreateImage(root, "Scrim", new Color(0f, 0f, 0f, 0.16f * dim));
+                var srt = scrim.rectTransform;
+                srt.anchorMin = new Vector2(0f, 0.42f);
+                srt.anchorMax = new Vector2(1f, 1f);
+                srt.offsetMin = Vector2.zero;
+                srt.offsetMax = Vector2.zero;
+                scrim.raycastTarget = false;
+
+                // 左右下三边的类型色描边（不加额外底框）
+                var frame = UiKit.CreateImage(root, "Frame", typeColor.WithAlpha(0.85f));
+                var frt = frame.rectTransform;
+                UiKit.Stretch(frt);
+                frame.type = Image.Type.Sliced;
+                frame.sprite = UiKit.RoundRect;
+                frame.color = new Color(typeColor.r, typeColor.g, typeColor.b, 0f);
+                frame.raycastTarget = false;
+
+                // --- 费用圆标 ---
                 var costCircle = UiKit.CreateImage(root, "CostCircle", Theme.EnergyCyan, UiKit.Circle);
                 var ccrt = costCircle.rectTransform;
                 ccrt.anchorMin = ccrt.anchorMax = new Vector2(0f, 1f);
@@ -499,21 +581,24 @@ namespace CatFight.Battle
                     Theme.FontBody, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
                 UiKit.Stretch(costT.rectTransform);
 
-                var nameT = UiKit.CreateText(root, "Name", card.Name, Theme.FontSmall, Color.white,
-                    TextAnchor.MiddleCenter, FontStyle.Bold);
+                // --- 卡名（下半部顶端）---
+                var nameT = UiKit.CreateOutlinedText(root, "Name", card.Name, Theme.FontSmall,
+                    Color.white, new Color(0f, 0f, 0f, 0.75f), TextAnchor.MiddleCenter, FontStyle.Bold);
                 var nrt = nameT.rectTransform;
-                nrt.anchorMin = nrt.anchorMax = new Vector2(0.5f, 1f);
+                nrt.anchorMin = new Vector2(0f, 0.5f);
+                nrt.anchorMax = new Vector2(1f, 0.5f);
                 nrt.pivot = new Vector2(0.5f, 1f);
-                nrt.anchoredPosition = new Vector2(0f, -14f);
-                nrt.sizeDelta = new Vector2(CardW - 76f, 40f);
+                nrt.anchoredPosition = new Vector2(0f, -6f);
+                nrt.sizeDelta = new Vector2(-16f, 40f);
 
-                var descT = UiKit.CreateText(root, "Desc", card.Description, Theme.FontTiny, Color.white,
-                    TextAnchor.UpperCenter);
+                // --- 描述（下半部）---
+                var descT = UiKit.CreateOutlinedText(root, "Desc", card.Description, Theme.FontTiny,
+                    Color.white, new Color(0f, 0f, 0f, 0.75f), TextAnchor.UpperCenter);
                 var drt = descT.rectTransform;
                 drt.anchorMin = new Vector2(0f, 0f);
-                drt.anchorMax = new Vector2(1f, 1f);
-                drt.offsetMin = new Vector2(14f, 14f);
-                drt.offsetMax = new Vector2(-14f, -66f);
+                drt.anchorMax = new Vector2(1f, 0.5f);
+                drt.offsetMin = new Vector2(12f, 12f);
+                drt.offsetMax = new Vector2(-12f, -48f);
 
                 var btn = root.gameObject.AddComponent<Button>();
                 btn.targetGraphic = bg;

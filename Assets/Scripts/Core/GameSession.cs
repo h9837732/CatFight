@@ -43,6 +43,12 @@ namespace CatFight.Core
 
             Settings = SaveService.LoadSettings();
             Application.targetFrameRate = 60;
+
+            // 音频总控
+            if (AudioDirector.Instance == null)
+            {
+                gameObject.AddComponent<AudioDirector>();
+            }
         }
 
         // ------------------------------------------------------------------
