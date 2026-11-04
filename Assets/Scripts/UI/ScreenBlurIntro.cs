@@ -17,7 +17,7 @@ namespace CatFight.UI
     public class ScreenBlurIntro : MonoBehaviour
     {
         [Tooltip("整体时长（秒）")]
-        public float duration = 0.9f;
+        public float duration = 1.5f;
 
         /// <summary>调试用：大于 0 时覆盖 duration，方便截图验证动画中间帧。</summary>
         public static float DebugDurationOverride = 0f;

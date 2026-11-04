@@ -16,6 +16,10 @@ namespace CatFight.Core
         public static bool KeyHeld(Key key)
             => Keyboard.current != null && Keyboard.current[key].isPressed;
 
+        /// <summary>窗口像素坐标的鼠标位置。</summary>
+        public static Vector2 MousePosition
+            => Mouse.current != null ? Mouse.current.position.ReadValue() : Vector2.zero;
+
         /// <summary>滚轮（已归一化：一格 ≈ 1）。</summary>
         public static float ScrollY
         {

@@ -19,10 +19,19 @@ namespace CatFight.Battle
     {
         private const float CardW = 200f;
         private const float CardH = 280f;
-        private const float HandSpan = 1240f;
+        private const float HandSpan = 1280f;
         private const float CardGap = 10f;
         private const float ArcHeight = 22f;     // 中间牌擑起高度，让叠压有层次
         private const float EnemyWidth = 240f;
+
+        // 手牌叠压与悬停
+        private const float MinSliver = 64f;     // 至少露出的宽度（装得下费用圆标）
+        private const float HoverLift = 74f;     // 悬停时抬起高度
+        private const float HoverScale = 1.06f;  // 悬停时微膨胀
+        private const float SelectLift = 56f;    // 选中时抬起高度
+        private const float SelectScale = 1.08f;
+        private const float DealStagger = 0.075f; // 发牌逐张间隔
+        private const float DealDuration = 0.28f; // 单张滑入时长
 
         private Canvas _canvas;
         private RectTransform _root;
@@ -53,6 +62,30 @@ namespace CatFight.Battle
         private int _selectedItemSlot = -1;
 
         private int _selectedHandIndex = -1;
+        private int _handTopIndex = -2;   // 当前置顶的手牌下标（-1 = 无），用于避免每帧重排图层
+        /// <summary>调试用：≥ 0 时强制该下标悬停（-1 = 按真实鼠标判定，-2 = 不支持）。</summary>
+        private static int _forceHoverIndex = -1;
+        /// <summary>调试用：发牌动画慢放倍数（1 = 正常）。</summary>
+        public static float DebugDealSlow = 1f;
+
+        /// <summary>供自动化测试指定悬停的牌。</summary>
+        public static void DebugForceHover(int handIndex) => _forceHoverIndex = handIndex;
+
+        /// <summary>供自动化测试读取手牌布局（每张的位置/缩放/图层）。</summary>
+        public string DebugHandLayout()
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append("top=").Append(_handTopIndex).Append(" sel=").Append(_selectedHandIndex).Append(" | ");
+            foreach (var cv in _cardViews)
+            {
+                sb.Append($"[{cv.handIndex} x={cv.baseX:F0} sib={cv.root.GetSiblingIndex()} pos={cv.root.anchoredPosition.x:F0},{cv.root.anchoredPosition.y:F0} sc={cv.root.localScale.x:F2}] ");
+            }
+            return sb.ToString();
+        }
+
+        private readonly List<Battle.CardInstance> _prevHandCards = new List<Battle.CardInstance>();
+        private readonly Dictionary<Battle.CardInstance, Vector2> _prevHandPos = new Dictionary<Battle.CardInstance, Vector2>();
+        private string _handSignature;
         private bool _busy;
         private bool _endHandled;
 
@@ -78,7 +111,10 @@ namespace CatFight.Battle
             public Text desc;
             public Text hint;        // “再点一次打出 / 选择目标”提示
             public Button button;
-            public float baseY;      // 未选中时的原始 y
+            public float baseX;      // 未选中、未悬停时的原始 x
+            public float baseY;      // 未选中、未悬停时的原始 y
+            public HandCardMotion motion;
+            public Battle.CardInstance card;
         }
 
         // ------------------------------------------------------------------
@@ -405,9 +441,15 @@ namespace CatFight.Battle
 
                 var btn = bg.gameObject.AddComponent<Button>();
                 btn.targetGraphic = bg;
-                string desc = Battle.RelicDb.DescOf(id);
+                string desc = RelicDb.DescOf(id);
                 string title = name;
-                btn.onClick.AddListener(() => ShowRelicTip(title, desc));
+                btn.onClick.AddListener(() => ShowHoverTip(title, desc, new Vector2(32f, -176f)));
+
+                // 悬停即显示说明（在遗物栏右侧，不遮挡栏位）
+                var tip = bg.gameObject.AddComponent<HoverTipTarget>();
+                Vector2 tipPos = new Vector2(32f + IconSize + 16f, -96f);
+                tip.onEnter = () => ShowHoverTip("遗物 · " + title, desc, tipPos);
+                tip.onExit = HideHoverTip;
             }
 
             if (run.relics.Count > MaxVisible)
@@ -422,20 +464,33 @@ namespace CatFight.Battle
             }
         }
 
-        /// <summary>点遗物弹出的说明（战斗内轻量提示，不阻断操作）。</summary>
-        private void ShowRelicTip(string title, string desc)
+        /// <summary>
+        /// 悬停说明（遗物 / 道具共用）。不阻断操作，鼠标离开就消失。
+        /// anchoredPos 是相对左上角的锚点位置，方便贴在对应栏位旁边。
+        /// </summary>
+        private void ShowHoverTip(string title, string desc, Vector2 anchoredPos, float width = 340f)
         {
-            if (_relicTip != null) Destroy(_relicTip);
+            HideHoverTip();          // 先清干净，始终只存在一个提示框
 
-            var go = UiKit.CreateRect(_canvas.transform, "RelicTip");
+            var go = UiKit.CreateRect(_root, "HoverTip");
             _relicTip = go;
             go.anchorMin = go.anchorMax = new Vector2(0f, 1f);
             go.pivot = new Vector2(0f, 1f);
-            go.anchoredPosition = new Vector2(32f, -176f);
-            go.sizeDelta = new Vector2(360f, 96f);
+            go.anchoredPosition = anchoredPos;
 
-            var bg = UiKit.CreatePanel(go, "Bg", Theme.PanelBg.WithAlpha(0.95f));
+            // 高度按描述长度自适应（中文按字号估行数）
+            int lines = Mathf.Max(1, Mathf.CeilToInt(EstimateTextWidth(desc, Theme.FontTiny) / (width - 28f)));
+            float h = 46f + lines * 22f;
+            go.sizeDelta = new Vector2(width, h);
+
+            var bg = UiKit.CreateImage(go, "Bg", Theme.PanelBg.WithAlpha(0.96f), UiKit.RoundRect);
+            bg.type = Image.Type.Sliced;
             UiKit.Stretch(bg.rectTransform);
+
+            var border = UiKit.CreateImage(go, "Border", Theme.Gold.WithAlpha(0.5f), UiKit.RoundRect);
+            border.type = Image.Type.Sliced;
+            UiKit.Stretch(border.rectTransform);
+            border.color = Theme.Gold.WithAlpha(0.45f);
 
             var t = UiKit.CreateText(go, "Title", title, Theme.FontSmall, Theme.Gold,
                 TextAnchor.UpperLeft, FontStyle.Bold);
@@ -443,22 +498,43 @@ namespace CatFight.Battle
             trt.anchorMin = new Vector2(0f, 1f);
             trt.anchorMax = new Vector2(1f, 1f);
             trt.pivot = new Vector2(0.5f, 1f);
-            trt.offsetMin = new Vector2(14f, -40f);
+            trt.offsetMin = new Vector2(14f, -38f);
             trt.offsetMax = new Vector2(-14f, -8f);
 
             var d = UiKit.CreateText(go, "Desc", desc, Theme.FontTiny, Theme.Paper, TextAnchor.UpperLeft);
             var drt = d.rectTransform;
             UiKit.Stretch(drt, 14f);
-            drt.offsetMax = new Vector2(-14f, -40f);
-            d.lineSpacing = 1.15f;
+            drt.offsetMax = new Vector2(-14f, -38f);
+            d.lineSpacing = 1.2f;
 
-            CancelInvoke(nameof(HideRelicTip));
-            Invoke(nameof(HideRelicTip), 2.5f);
+            // 点击也能看一眼（旧行为保留），但不再定时自动隐藏
+            CancelInvoke(nameof(HideHoverTip));
         }
 
-        private void HideRelicTip()
+        private void HideHoverTip()
         {
-            if (_relicTip != null) { Destroy(_relicTip); _relicTip = null; }
+            _relicTip = null;
+
+            // 不依赖单个引用：把残留的同名提示框全部清掉，
+            // 避免多次悬停/重建后叠出好几个框。
+            var stale = new List<GameObject>();
+            foreach (Transform child in _root)
+                if (child.name == "HoverTip") stale.Add(child.gameObject);
+
+            foreach (var g in stale) Destroy(g);
+        }
+
+        /// <summary>粗估一行文字宽度（中文按一个字号宽，ASCII 按半个），用于自适应提示框高度。</summary>
+        private static float EstimateTextWidth(string s, int fontSize)
+        {
+            if (string.IsNullOrEmpty(s)) return 0f;
+            float w = 0f;
+            foreach (char c in s)
+            {
+                if (c == '\n') { w += 9999f; continue; }
+                w += c < 128 ? fontSize * 0.55f : fontSize;
+            }
+            return w;
         }
 
         /// <summary>
@@ -491,6 +567,7 @@ namespace CatFight.Battle
         private void RefreshItemBar()
         {
             if (_itemBar == null) return;
+            HideHoverTip();
 
             // 只清格子，保留标题
             for (int k = _itemBar.childCount - 1; k >= 0; k--)
@@ -545,6 +622,17 @@ namespace CatFight.Battle
                 int slot = i;
                 string itemId = id;
                 btn.onClick.AddListener(() => OnItemClicked(slot, itemId));
+
+                // 悬停说明（贴在道具栏右侧，不遮挡格位）
+                var itemDef = ItemDb.Get(itemId);
+                string iTitle = itemDef != null ? itemDef.name : itemId;
+                string iDesc = itemDef != null ? itemDef.desc : "";
+                if (itemDef != null && itemDef.target == TargetMode.SingleEnemy)
+                    iDesc += "\n需要选择一个敌人。";
+                Vector2 iTipPos = new Vector2(32f + 16f + Cell + 14f, -206f - i * (Cell + Gap) + 30f);
+                var hover = cell.gameObject.AddComponent<HoverTipTarget>();
+                hover.onEnter = () => ShowHoverTip("道具 · " + iTitle, iDesc, iTipPos, 300f);
+                hover.onExit = HideHoverTip;
             }
         }
 
@@ -785,14 +873,30 @@ namespace CatFight.Battle
 
         private void RebuildHand()
         {
+            // 手牌视图只依赖「牌列表 + 行动点 + 阶段」三项。
+            // 指纹没变就不重建：避免同一帧被多次刷新（事件 + 显式调用）
+            // 反复 Destroy/重创，从而打断发牌与重排动画。
+            string sig = BuildHandSignature();
+            if (sig == _handSignature) return;
+            _handSignature = sig;
+
             UiKit.DestroyChildren(_handRow);
             _cardViews.Clear();
 
             int n = _state.Hand.Count;
 
-            // ---- 布局：一排错叠。张数越多叠得越紧，但每张仍露出左侧费用与顶部卡名 ----
-            float step = n <= 1 ? 0f : Mathf.Min(CardW + CardGap, (HandSpan - CardW) / (n - 1));
+            // ---- 布局：自适应叠压 ----
+            // 宽度够就平铺（CardW + CardGap）；不够就按 HandSpan 平分；
+            // 最多叠到每张只露 MinSliver 宽（装得下费用圆标 + 一点牌面）。
+            // 于是“牌越多、遮盖越多”，但永远不超出给定宽度。
+            float fit = n <= 1 ? CardW : (HandSpan - CardW) / (n - 1);
+            float step = Mathf.Clamp(fit, MinSliver, CardW + CardGap);
             float total = CardW + step * Mathf.Max(0, n - 1);
+
+            // 最右侧“牌框”入口：所有新牌从这里滑入
+            float entryX = total * 0.5f + CardW * 0.5f;
+
+            int dealOrder = 0;
 
             for (int i = 0; i < n; i++)
             {
@@ -917,31 +1021,153 @@ namespace CatFight.Battle
                 int handIdx = i;
                 btn.onClick.AddListener(() => OnCardClicked(handIdx));
 
+                // --- 位移动画组件 + 发牌入场 ---
+                var motion = root.gameObject.AddComponent<HandCardMotion>();
+                motion.handIndex = i;
+                motion.targetPos = new Vector2(x, arc);
+
+                // 只有“上一帧还不在手里”的牌才播发牌动画；
+                // 已在手里的牌从旧位置滑到新位置，免得出牌后整排瞬移。
+                bool isNew = !_prevHandCards.Contains(card);
+                if (isNew)
+                {
+                    motion.PlayEnter(new Vector2(entryX, -46f), DealDuration * DebugDealSlow,
+                                     dealOrder * DealStagger * DebugDealSlow);
+                    dealOrder++;
+                }
+                else if (_prevHandPos.TryGetValue(card, out Vector2 oldPos))
+                {
+                    motion.StartFrom(oldPos);
+                }
+                else
+                {
+                    motion.Snap();
+                }
+
                 _cardViews.Add(new CardView
                 {
                     handIndex = i, root = root, bg = bg, cost = costT, name = nameT, desc = descT,
-                    hint = hint, button = btn, baseY = arc
+                    hint = hint, button = btn, baseX = x, baseY = arc, motion = motion, card = card
                 });
             }
 
+            _prevHandCards.Clear();
+            _prevHandPos.Clear();
+            for (int i = 0; i < n; i++)
+            {
+                var c = _state.Hand[i];
+                float p = n <= 1 ? 0.5f : (float)i / (n - 1);
+                _prevHandCards.Add(c);
+                _prevHandPos[c] = new Vector2(
+                    -total * 0.5f + CardW * 0.5f + i * step,
+                    ArcHeight * (1f - Mathf.Pow(2f * p - 1f, 2f)));
+            }
+
+            _handTopIndex = -2;      // 强制重排一次图层
             ApplySelectionHighlight();
         }
 
-        private void ApplySelectionHighlight()
+        /// <summary>
+        /// 手牌每帧状态：悬停判定 → 目标位移/缩放 → 叠压图层。
+        ///
+        /// 悬停用统一的手动矩形判定，从最上层往下扫，第一个命中的就是悬停牌；
+        /// 这样判定顺序和图层天然一致，也不会因为重建手牌而丢失悬停态
+        /// （若用 IPointerEnter，卡片对象被重建后鼠标不动就再也收不到事件）。
+        /// 判定矩形额外放宽：牌抬起/膨胀后鼠标不应该“掉出”而闪断。
+        /// </summary>
+        private void UpdateHandView()
         {
+            if (_cardViews.Count == 0 || _canvas == null) return;
+
+            int hoverIdx = -1;
+            Vector2 sp = InputCompat.MousePosition;
+            Camera cam = _canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : _canvas.worldCamera;
+
+            // 调试/自动化：强制指定悬停下标（-1 = 正常鼠标判定）
+            if (_forceHoverIndex >= 0)
+                hoverIdx = Mathf.Min(_forceHoverIndex, _cardViews.Count - 1);
+            else
+            for (int i = _cardViews.Count - 1; i >= 0; i--)
+            {
+                var cv = _cardViews[i];
+                if (cv.root == null) continue;
+                if (ContainsLocal(cv.root, sp, cam, 10f, 96f)) { hoverIdx = cv.handIndex; break; }
+            }
+
+            int topIdx = hoverIdx >= 0 ? hoverIdx : _selectedHandIndex;
+            if (topIdx != _handTopIndex)
+            {
+                _handTopIndex = topIdx;
+                RestackHand(topIdx);
+            }
+
             foreach (var cv in _cardViews)
             {
+                bool hovered = cv.handIndex == hoverIdx;
                 bool selected = cv.handIndex == _selectedHandIndex;
 
-                cv.root.anchoredPosition = new Vector2(cv.root.anchoredPosition.x, selected ? cv.baseY + 56f : cv.baseY);
-                cv.root.localScale = Vector3.one * (selected ? 1.08f : 1f);
+                float lift = selected ? SelectLift : 0f;
+                float scale = selected ? SelectScale : 1f;
 
-                // 选中牌置顶，避免被右侧牌遮住；未选中的卡保持原图层
-                cv.root.SetSiblingIndex(selected ? _cardViews.Count - 1 : cv.handIndex);
+                // 悬停：完整显示（置顶已在上面处理）+ 略微膨胀
+                if (hovered)
+                {
+                    lift = Mathf.Max(lift, HoverLift);
+                    scale = Mathf.Max(scale, HoverScale);
+                }
+
+                if (cv.motion != null)
+                {
+                    cv.motion.targetPos = new Vector2(cv.baseX, cv.baseY + lift);
+                    cv.motion.targetScale = scale;
+                }
 
                 if (cv.hint != null)
                     cv.hint.gameObject.SetActive(selected);
             }
+        }
+
+        /// <summary>把 topIdx 那张牌提到同级最后（画在最上层），其余保持原顺序。</summary>
+        private void RestackHand(int topIdx)
+        {
+            int sib = 0;
+            foreach (var cv in _cardViews)
+            {
+                if (cv.handIndex == topIdx) continue;
+                cv.root.SetSiblingIndex(sib++);
+            }
+            foreach (var cv in _cardViews)
+            {
+                if (cv.handIndex == topIdx) cv.root.SetSiblingIndex(_cardViews.Count - 1);
+            }
+        }
+
+        /// <summary>手牌视图指纹（牌列表 + 行动点 + 阶段）。</summary>
+        private string BuildHandSignature()
+        {
+            var sb = new System.Text.StringBuilder(64);
+            sb.Append(_state.Energy).Append('|').Append((int)_state.Phase).Append('|');
+            foreach (var c in _state.Hand)
+                sb.Append(c.GetHashCode()).Append(',');
+            return sb.ToString();
+        }
+
+        /// <summary>屏幕点是否落在矩形内（可向外放宽 padX/padY）。</summary>
+        private static bool ContainsLocal(RectTransform rt, Vector2 screenPoint, Camera cam, float padX, float padY)
+        {
+            Vector2 local;
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(rt, screenPoint, cam, out local))
+                return false;
+
+            Rect r = rt.rect;
+            r.xMin -= padX; r.xMax += padX;
+            r.yMin -= padY; r.yMax += padY;
+            return r.Contains(local);
+        }
+
+        private void ApplySelectionHighlight()
+        {
+            UpdateHandView();
         }
 
         // ------------------------------------------------------------------
@@ -1202,6 +1428,9 @@ namespace CatFight.Battle
 
         private void Update()
         {
+            // 手牌悬停/叠压图层每帧刷新（鼠标可能没动，但牌位变了）
+            UpdateHandView();
+
             if (InputCompat.KeyDown(Key.Escape))
             {
                 if (_selectedItemSlot >= 0) ClearItemSelection();
