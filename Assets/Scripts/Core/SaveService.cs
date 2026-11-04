@@ -77,6 +77,7 @@ namespace CatFight.Core
 
                 if (run.deck == null) run.deck = new List<CardRef>();
                 if (run.relics == null) run.relics = new List<string>();
+                if (run.items == null) run.items = new List<string>();
                 if (run.visitedPath == null) run.visitedPath = new List<int>();
                 if (run.maxHp < 1) run.maxHp = 80;
                 run.hp = Mathf.Clamp(run.hp, 0, run.maxHp);

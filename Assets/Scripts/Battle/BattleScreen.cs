@@ -47,6 +47,10 @@ namespace CatFight.Battle
         private readonly List<EnemyView> _enemyViews = new List<EnemyView>();
         private readonly List<CardView> _cardViews = new List<CardView>();
         private RectTransform _relicTip;
+        private RectTransform _itemBar;
+        private RectTransform _hintBar;
+        private Text _hintText;
+        private int _selectedItemSlot = -1;
 
         private int _selectedHandIndex = -1;
         private bool _busy;
@@ -213,6 +217,7 @@ namespace CatFight.Battle
 
             BuildTopBar();
             BuildRelicBar();
+            BuildItemBar();
             BuildPlayerPanel();
             BuildEnemyArea();
             BuildHandArea();
@@ -454,6 +459,172 @@ namespace CatFight.Battle
         private void HideRelicTip()
         {
             if (_relicTip != null) { Destroy(_relicTip); _relicTip = null; }
+        }
+
+        /// <summary>
+        /// 消耗型道具栏（纵向，挂在遗物栏下方）。
+        /// 布局按草图：遗物横排、道具纵排。每格 64×64，最多 ItemDb.MaxSlots 格。
+        /// 点道具 → 无目标直接使用；需要目标则进入选择态，再点敌人。
+        /// </summary>
+        private void BuildItemBar()
+        {
+            var root = UiKit.CreateRect(_root, "ItemBar");
+            root.anchorMin = root.anchorMax = new Vector2(0f, 1f);
+            root.pivot = new Vector2(0f, 1f);
+            root.anchoredPosition = new Vector2(32f, -206f);
+            root.sizeDelta = new Vector2(72f, 260f);
+            _itemBar = root;
+
+            // 栏目分隔标题，避免和上方遗物栏看成同一列
+            var cap = UiKit.CreateOutlinedText(root, "Cap", "道具", Theme.FontTiny,
+                Theme.Paper.WithAlpha(0.75f), new Color(0f, 0f, 0f, 0.6f), TextAnchor.MiddleLeft);
+            var crt = cap.rectTransform;
+            crt.anchorMin = crt.anchorMax = new Vector2(0f, 1f);
+            crt.pivot = new Vector2(0f, 1f);
+            crt.anchoredPosition = new Vector2(4f, 22f);
+            crt.sizeDelta = new Vector2(80f, 20f);
+
+            RefreshItemBar();
+        }
+
+        /// <summary>重建道具格（使用道具后需要刷新）。</summary>
+        private void RefreshItemBar()
+        {
+            if (_itemBar == null) return;
+
+            // 只清格子，保留标题
+            for (int k = _itemBar.childCount - 1; k >= 0; k--)
+            {
+                var child = _itemBar.GetChild(k);
+                if (child.name.StartsWith("Item") || child.name.StartsWith("Empty"))
+                    Destroy(child.gameObject);
+            }
+
+            var run = GameSession.Instance != null ? GameSession.Instance.Run : null;
+            int count = run != null && run.items != null ? run.items.Count : 0;
+
+            const float Cell = 56f;
+            const float Gap = 8f;
+
+            for (int i = 0; i < ItemDb.MaxSlots; i++)
+            {
+                bool filled = i < count;
+                string id = filled ? run.items[i] : null;
+
+                var cell = UiKit.CreateImage(_itemBar, "Item" + i,
+                    filled ? Theme.PanelBg.WithAlpha(0.86f) : new Color(0f, 0f, 0f, 0.20f),
+                    UiKit.RoundRect, raycast: filled);
+                cell.type = Image.Type.Sliced;
+                var rt = cell.rectTransform;
+                rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
+                rt.pivot = new Vector2(0f, 1f);
+                rt.anchoredPosition = new Vector2(4f, -i * (Cell + Gap));
+                rt.sizeDelta = new Vector2(Cell, Cell);
+
+                if (!filled)
+                {
+                    // 空格：只画一个淡框
+                    var plus = UiKit.CreateText(cell.transform, "Empty", "·", Theme.FontSmall,
+                        Theme.Paper.WithAlpha(0.25f));
+                    UiKit.Stretch(plus.rectTransform);
+                    continue;
+                }
+
+                // 无图标素材：用道具名首字占位
+                string name = ItemDb.NameOf(id);
+                var glyph = UiKit.CreateText(cell.transform, "Glyph",
+                    string.IsNullOrEmpty(name) ? "?" : name.Substring(0, 1),
+                    Theme.FontSmall, Theme.EnergyCyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+                UiKit.Stretch(glyph.rectTransform);
+
+                if (_selectedItemSlot == i)
+                    cell.color = Theme.EnergyCyan.WithAlpha(0.35f);
+
+                var btn = cell.gameObject.AddComponent<Button>();
+                btn.targetGraphic = cell;
+                int slot = i;
+                string itemId = id;
+                btn.onClick.AddListener(() => OnItemClicked(slot, itemId));
+            }
+        }
+
+        private void OnItemClicked(int slot, string itemId)
+        {
+            if (_busy || _state == null || _state.Phase != BattlePhase.PlayerAction) return;
+
+            var item = ItemDb.Get(itemId);
+            if (item == null) return;
+
+            // 再点同一个 → 取消
+            if (_selectedItemSlot == slot)
+            {
+                ClearItemSelection();
+                return;
+            }
+
+            // 先清掉卡牌选中，两者互斥
+            ClearSelection();
+
+            if (item.target == TargetMode.SingleEnemy)
+            {
+                _selectedItemSlot = slot;
+                RefreshItemBar();
+                ShowHintBar($"{item.name}：点击一个敌人");
+                return;
+            }
+
+            // 无目标：直接使用
+            UseItemAt(slot, item, 0);
+        }
+
+        private void UseItemAt(int slot, ItemDef item, int targetIndex)
+        {
+            if (!_state.UseItem(item, targetIndex)) return;
+
+            // 从存档列表里移除
+            var run = GameSession.Instance.Run;
+            if (run != null && slot >= 0 && slot < run.items.Count)
+                run.items.RemoveAt(slot);
+
+            ClearItemSelection();
+            SaveService.SaveRun(run);
+            RefreshItemBar();
+            AfterPlayerAction();
+        }
+
+        private void ClearItemSelection()
+        {
+            _selectedItemSlot = -1;
+            HideHintBar();
+            RefreshItemBar();
+        }
+
+        /// <summary>遗物/道具在屏幕中上的操作提示。</summary>
+        private void ShowHintBar(string text)
+        {
+            if (_hintBar == null)
+            {
+                var rt = UiKit.CreateRect(_root, "HintBar");
+                _hintBar = rt;
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
+                rt.pivot = new Vector2(0.5f, 1f);
+                rt.anchoredPosition = new Vector2(0f, -62f);
+                rt.sizeDelta = new Vector2(560f, 42f);
+
+                var bg = UiKit.CreateImage(rt, "Bg", Theme.PanelBg.WithAlpha(0.88f), UiKit.RoundRect);
+                bg.type = Image.Type.Sliced;
+                UiKit.Stretch(bg.rectTransform);
+
+                _hintText = UiKit.CreateText(rt, "Text", "", Theme.FontSmall, Theme.Gold);
+                UiKit.Stretch(_hintText.rectTransform, 8f);
+            }
+            _hintBar.gameObject.SetActive(true);
+            _hintText.text = text;
+        }
+
+        private void HideHintBar()
+        {
+            if (_hintBar != null) _hintBar.gameObject.SetActive(false);
         }
 
         private void BuildEnemyArea()
@@ -882,6 +1053,9 @@ namespace CatFight.Battle
             if (_busy || _state.Phase != BattlePhase.PlayerAction) return;
             if (handIndex < 0 || handIndex >= _state.Hand.Count) return;
 
+            // 卡牌与道具选中互斥
+            if (_selectedItemSlot >= 0) ClearItemSelection();
+
             var card = _state.Hand[handIndex];
 
             // ---- 防误触（0.8 秒确认窗口）----
@@ -946,6 +1120,20 @@ namespace CatFight.Battle
         private void OnEnemyClicked(int enemyIndex)
         {
             if (_busy || _state.Phase != BattlePhase.PlayerAction) return;
+
+            // 道具优先：处于道具选目标状态时，点敌人 = 使用道具
+            if (_selectedItemSlot >= 0)
+            {
+                var run = GameSession.Instance.Run;
+                if (run != null && _selectedItemSlot < run.items.Count)
+                {
+                    var item = ItemDb.Get(run.items[_selectedItemSlot]);
+                    if (item != null) { UseItemAt(_selectedItemSlot, item, enemyIndex); return; }
+                }
+                ClearItemSelection();
+                return;
+            }
+
             if (_selectedHandIndex < 0) return;
 
             int handIdx = _selectedHandIndex;
@@ -969,6 +1157,7 @@ namespace CatFight.Battle
         {
             if (_busy || _state.Phase != BattlePhase.PlayerAction) return;
             ClearSelection();
+            if (_selectedItemSlot >= 0) ClearItemSelection();
             StartCoroutine(EnemyTurnRoutine());
         }
 
@@ -1013,8 +1202,11 @@ namespace CatFight.Battle
 
         private void Update()
         {
-            if (InputCompat.KeyDown(Key.Escape) && _selectedHandIndex >= 0)
-                ClearSelection();
+            if (InputCompat.KeyDown(Key.Escape))
+            {
+                if (_selectedItemSlot >= 0) ClearItemSelection();
+                else if (_selectedHandIndex >= 0) ClearSelection();
+            }
 
             if (InputCompat.KeyDown(Key.E) && _state != null && _state.Phase == BattlePhase.PlayerAction && !_busy)
                 OnEndTurn();

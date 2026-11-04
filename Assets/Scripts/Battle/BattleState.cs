@@ -646,6 +646,62 @@ namespace CatFight.Battle
             EnergyMax = Math.Max(1, EnergyMax + amount);
             Energy = EnergyMax;
         }
+
+        // ------------------------------------------------------------------
+        // 消耗型道具
+        // ------------------------------------------------------------------
+
+        /// <summary>道具是否可用（战斗中 + 玩家回合 + 目标合法）。</summary>
+        public bool CanUseItem(ItemDef item, int targetIndex, out string reason)
+        {
+            reason = null;
+            if (item == null) { reason = "道具不存在"; return false; }
+            if (Phase != BattlePhase.PlayerAction) { reason = "现在不能使用道具"; return false; }
+
+            if (item.target == TargetMode.SingleEnemy)
+            {
+                if (targetIndex < 0 || targetIndex >= Enemies.Count || Enemies[targetIndex].IsDead)
+                {
+                    reason = "需要选择一个存活目标";
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// 使用道具。效果结算复用卡牌那套 EffectOp，所以治疗/格挡/状态/伤害都一致。
+        /// 道具不消耗行动点（药水靠数量限制，不靠能量）。
+        /// </summary>
+        public bool UseItem(ItemDef item, int targetIndex)
+        {
+            if (!CanUseItem(item, targetIndex, out string reason))
+            {
+                LogLine($"无法使用「{(item == null ? "?" : item.name)}」：{reason}");
+                return false;
+            }
+
+            LogLine($"使用道具「{item.name}」");
+
+            // 直接复用卡牌效果结算
+            var fake = new CardInstance(new CardData
+            {
+                id = item.id,
+                name = item.name,
+                type = CardType.Skill,
+                target = item.target,
+                cost = 0,
+                effects = item.effects
+            }, false);
+
+            ApplyEffects(fake, targetIndex);
+
+            CheckBattleEnd();
+            Changed();
+            return true;
+        }
+
+        private void ApplyEffects(CardInstance card, int targetIndex) => ResolveEffects(card, targetIndex);
     }
 
     /// <summary>战斗初始化用的轻量卡牌引用（避免 Battle 依赖 Core）。</summary>

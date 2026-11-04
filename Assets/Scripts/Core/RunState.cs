@@ -38,6 +38,9 @@ namespace CatFight.Core
         // --- 收藏 ---
         public List<CardRef> deck = new List<CardRef>();
         public List<string> relics = new List<string>();
+        /// <summary>消耗型道具（药水）。战斗中可使用，用后消失。
+        /// 存档字段后加，旧档读入时为 null，由 SaveService 初始化为空表。</summary>
+        public List<string> items = new List<string>();
 
         public int CurrentNodeId => visitedPath.Count > 0 ? visitedPath[visitedPath.Count - 1] : -1;
         public int RowsCleared => visitedPath.Count;
@@ -52,6 +55,8 @@ namespace CatFight.Core
                 gold = 99,
             };
             run.deck.AddRange(StarterDeck());
+            // 开局带一瓶治疗药水，保证道具欄一开始就有东西可用
+            run.items.Add("item_heal_potion");
             // 遗物不预设：开局由玩家三选一（见 MapScreen.ShowRelicChoice）
             return run;
         }

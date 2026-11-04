@@ -720,20 +720,25 @@ namespace CatFight.MapScene
             OpenModal("宝箱", new Vector2(720f, 460f));
 
             int gold = Random.Range(30, 70);
+            string itemId = Battle.ItemDb.RollRandom(new System.Random(_run.seed + _run.visitedPath.Count * 31));
+            string itemName = Battle.ItemDb.NameOf(itemId);
+            bool canTakeItem = _run.items.Count < Battle.ItemDb.MaxSlots;
 
             var desc = UiKit.CreateText(_modal, "Desc",
-                $"箱子里是一枚古旧的护符。\n\n获得 {gold} 金币\n获得遗物「占位护符」",
+                $"箱子里是一枚古旧的护符。\n\n获得 {gold} 金币\n获得遗物「占位护符」" +
+                (canTakeItem ? $"\n获得道具「{itemName}」" : "\n（道具栏已满）"),
                 Theme.FontBody, Theme.Paper);
-            UiKit.AnchorCenter(desc.rectTransform, new Vector2(0f, 20f), new Vector2(600f, 140f));
+            UiKit.AnchorCenter(desc.rectTransform, new Vector2(0f, 10f), new Vector2(620f, 180f));
 
             // 奖励在点击「收下」时才发放，避免打开弹窗就结算
             var ok = UiKit.CreateButton(_modal, "Ok", "收下", Theme.FontBody, Theme.Gold, Theme.Ink, () =>
             {
                 _run.gold += gold;
                 _run.relics.Add("relic_placeholder_" + _run.relics.Count);
+                if (_run.items.Count < Battle.ItemDb.MaxSlots) _run.items.Add(itemId);
                 CloseModalAndContinue();
             });
-            UiKit.AnchorCenter(ok.GetComponent<RectTransform>(), new Vector2(0f, -150f), new Vector2(300f, 76f));
+            UiKit.AnchorCenter(ok.GetComponent<RectTransform>(), new Vector2(0f, -170f), new Vector2(300f, 76f));
         }
 
         private void ShowShopDialog()
@@ -742,7 +747,7 @@ namespace CatFight.MapScene
 
             var desc = UiKit.CreateText(_modal, "Desc", $"金币：{_run.gold}",
                 Theme.FontBody, Theme.Gold);
-            UiKit.AnchorCenter(desc.rectTransform, new Vector2(0f, 180f), new Vector2(600f, 50f));
+            UiKit.AnchorCenter(desc.rectTransform, new Vector2(0f, 200f), new Vector2(600f, 50f));
 
             string[] offers = { "cleave", "iron_wave", "shrug_it_off" };
             int[] prices = { 45, 60, 50 };
@@ -761,13 +766,31 @@ namespace CatFight.MapScene
                         _run.deck.Add(new CardRef(cardId));
                         CloseModalAndContinue();
                     });
-                UiKit.AnchorCenter(btn.GetComponent<RectTransform>(), new Vector2(x, 30f), new Vector2(270f, 200f));
+                UiKit.AnchorCenter(btn.GetComponent<RectTransform>(), new Vector2(x, 70f), new Vector2(270f, 200f));
                 x += 300f;
             }
 
+            // 道具（药水）也卖，因为存档只存 id，价格按顺序固定
+            string itemId = Battle.ItemDb.RollRandom(new System.Random(_run.seed + 500));
+            int itemPrice = 60;
+            bool slotFree = _run.items.Count < Battle.ItemDb.MaxSlots;
+
+            var itemBtn = UiKit.CreateButton(_modal, "BuyItem",
+                slotFree
+                    ? $"道具\n{Battle.ItemDb.NameOf(itemId)}\n{itemPrice} 金币"
+                    : $"道具栏已满\n（{Battle.ItemDb.MaxSlots}/{Battle.ItemDb.MaxSlots}）",
+                Theme.FontSmall, slotFree ? Theme.Shop : Theme.PanelBg2, Theme.Paper, () =>
+                {
+                    if (!slotFree || _run.gold < itemPrice) return;
+                    _run.gold -= itemPrice;
+                    _run.items.Add(itemId);
+                    CloseModalAndContinue();
+                });
+            UiKit.AnchorCenter(itemBtn.GetComponent<RectTransform>(), new Vector2(-320f, -150f), new Vector2(270f, 130f));
+
             var leave = UiKit.CreateButton(_modal, "Leave", "离开", Theme.FontBody, Theme.InkSoft, Theme.Paper,
                 CloseModalAndContinue);
-            UiKit.AnchorCenter(leave.GetComponent<RectTransform>(), new Vector2(0f, -200f), new Vector2(300f, 72f));
+            UiKit.AnchorCenter(leave.GetComponent<RectTransform>(), new Vector2(200f, -170f), new Vector2(300f, 72f));
         }
 
         private static string CardName(string id)

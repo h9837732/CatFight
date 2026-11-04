@@ -1,10 +1,10 @@
 {
     "version": 1,
-    "seed": 33704078,
+    "seed": 34145000,
     "generatorVersion": 1,
     "visitedPath": [
         0,
-        101
+        100
     ],
     "act": 1,
     "characterId": "ironclad",
@@ -54,6 +54,9 @@
         }
     ],
     "relics": [
-        "relic_pocket_watch"
+        "relic_iron_plate"
+    ],
+    "items": [
+        "item_heal_potion"
     ]
 }
