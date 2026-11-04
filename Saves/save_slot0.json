@@ -1,0 +1,62 @@
+{
+    "version": 1,
+    "seed": 17033437,
+    "generatorVersion": 1,
+    "visitedPath": [
+        0
+    ],
+    "act": 1,
+    "characterId": "ironclad",
+    "hp": 62,
+    "maxHp": 80,
+    "gold": 135,
+    "deck": [
+        {
+            "id": "strike",
+            "upgraded": false
+        },
+        {
+            "id": "strike",
+            "upgraded": false
+        },
+        {
+            "id": "strike",
+            "upgraded": false
+        },
+        {
+            "id": "strike",
+            "upgraded": false
+        },
+        {
+            "id": "strike",
+            "upgraded": false
+        },
+        {
+            "id": "defend",
+            "upgraded": false
+        },
+        {
+            "id": "defend",
+            "upgraded": false
+        },
+        {
+            "id": "defend",
+            "upgraded": false
+        },
+        {
+            "id": "defend",
+            "upgraded": false
+        },
+        {
+            "id": "bash",
+            "upgraded": false
+        },
+        {
+            "id": "twin_strike",
+            "upgraded": false
+        }
+    ],
+    "relics": [
+        "relic_burning_blood"
+    ]
+}

@@ -1,7 +1,9 @@
 {
     "name": "CatFight.Runtime",
     "rootNamespace": "CatFight",
-    "references": [],
+    "references": [
+        "Unity.InputSystem"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

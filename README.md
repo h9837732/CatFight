@@ -51,3 +51,28 @@ Git + Git LFS（美术/音频/模型等二进制资源）。克隆后请先执�
 ```bash
 git lfs install
 ```
+
+## 当前实现进度（原型 v0.1）
+
+| 模块 | 状态 | 说明 |
+|---|---|---|
+| 开始界面 | ✅ 可运行 | 新游戏 / 继续 / 设置 / 退出；存档覆盖确认；设置可持久化 |
+| 地图 | ✅ 可运行 | 按种子生成 14 行带状图；节点类型可见；点击推进；未选分支淡化 |
+| 存档 | ✅ 可运行 | JSON，存种子 + 已走路径 + 血量 / 金币 / 卡组 / 遗物 |
+| 战斗 | ✅ 可运行 | 能量 / 格挡 / 伤害结算链 / 状态 / 意图 / 抽牌弃牌 / 胜负结算 |
+| 卡牌奖励 | ✅ 可运行 | 胜利后三选一或跳过，写入卡组 |
+| 节点事件 | ⚠️ 占位 | 休息 / 商店 / 宝箱 / 事件均为可玩的最小实现，待正式内容 |
+| 美术 | ❌ 占位 | 全部程序生成图形 + 系统字体；接入素材后替换 `UiKit` 内部实现 |
+
+### 场景
+
+`Assets/Scenes/MainMenu.unity`、`Map.unity`、`Battle.unity`，已写入 Build Settings。
+每个场景只放一个 bootstrap 物体，界面全部由运行时代码构建——接入正式 UI 素材时不用重做场景。
+菜单 `CatFight → Scenes → Rebuild All` 可一键重建。
+
+### 开发环境注意
+
+- 项目路径必须纯 ASCII（见 `Docs/Design/地图系统设计_v1.0.md` §16.6）
+- 项目启用新版 Input System（`activeInputHandler = 1`），**不要用 `UnityEngine.Input`**，
+  统一走 `CatFight.Core.InputCompat`；EventSystem 必须用 `InputSystemUIInputModule`
+- Editor 需开启 Run In Background，否则失焦时游戏冻结在第 1 帧
