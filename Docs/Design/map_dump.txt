@@ -1,0 +1,191 @@
+seed=1234  rows=14  nodes=29  edges=38  paths=84
+
+row00 y=0 count=1  #0Bx=-21  
+row01 y=-140 count=2  #0Bx=-132  #1Bx=238  
+row02 y=-280 count=3  #0?x=-243  #1Bx=21  #2Bx=256  
+row03 y=-420 count=2  #0Ex=-169  #1Bx=125  
+row04 y=-560 count=3  #0?x=-276  #1?x=-32  #2Bx=264  
+row05 y=-700 count=2  #0Bx=-168  #1Bx=186  
+row06 y=-840 count=1  #0Rx=-97  
+row07 y=-980 count=2  #0Bx=-162  #1Bx=143  
+row08 y=-1120 count=3  #0Bx=-207  #1Bx=-19  #2Bx=231  
+row09 y=-1260 count=3  #0?x=-206  #1?x=22  #2$x=240  
+row10 y=-1400 count=3  #0Bx=-238  #1Bx=37  #2Ex=243  
+row11 y=-1540 count=2  #0Bx=-213  #1Bx=143  
+row12 y=-1680 count=1  #0Rx=-39  
+row13 y=-1820 count=1  #0Xx=44  
+
+r00 [B]
+r01 [B]  [B]
+r02 [?]  [B]  [B]
+r03 [E]  [B]
+r04 [?]  [?]  [B]
+r05 [B]  [B]
+r06 [R]
+r07 [B]  [B]
+r08 [B]  [B]  [B]
+r09 [?]  [?]  [$]
+r10 [B]  [B]  [E]
+r11 [B]  [B]
+r12 [R]
+r13 [X]
+
+edges:
+  r0.0B -> Br1.0, Br1.1
+  r1.0B -> ?r2.0, Br2.1
+  r1.1B -> Br2.2
+  r2.0? -> Er3.0
+  r2.1B -> Er3.0
+  r2.2B -> Br3.1
+  r3.0E -> ?r4.0, ?r4.1
+  r3.1B -> Br4.2
+  r4.0? -> Br5.0
+  r4.1? -> Br5.0, Br5.1
+  r4.2B -> Br5.1
+  r5.0B -> Rr6.0
+  r5.1B -> Rr6.0
+  r6.0R -> Br7.0, Br7.1
+  r7.0B -> Br8.0, Br8.1
+  r7.1B -> Br8.2, Br8.1
+  r8.0B -> ?r9.0, ?r9.1
+  r8.1B -> ?r9.1
+  r8.2B -> $r9.2
+  r9.0? -> Br10.0
+  r9.1? -> Br10.1, Er10.2
+  r9.2$ -> Er10.2
+  r10.0B -> Br11.0
+  r10.1B -> Br11.0
+  r10.2E -> Br11.1, Br11.0
+  r11.0B -> Rr12.0
+  r11.1B -> Rr12.0
+  r12.0R -> Xr13.0
+
+counts: Battle=18 Event=5 Elite=2 Rest=2 Shop=1 Boss=1 
+
+------------------------------------------------------------------------
+seed=777  rows=14  nodes=26  edges=35  paths=64
+
+row00 y=0 count=1  #0Bx=60  
+row01 y=-140 count=2  #0Bx=-234  #1Bx=217  
+row02 y=-280 count=3  #0Bx=-222  #1?x=31  #2?x=221  
+row03 y=-420 count=4  #0?x=-271  #1?x=-75  #2Ex=104  #3Bx=249  
+row04 y=-560 count=3  #0$x=-278  #1Rx=-2  #2Bx=223  
+row05 y=-700 count=2  #0Bx=-183  #1Bx=225  
+row06 y=-840 count=1  #0Rx=-57  
+row07 y=-980 count=2  #0?x=-119  #1Bx=131  
+row08 y=-1120 count=1  #0Ex=-87  
+row09 y=-1260 count=2  #0$x=-135  #1?x=120  
+row10 y=-1400 count=1  #0Ex=-98  
+row11 y=-1540 count=2  #0Bx=-148  #1Bx=176  
+row12 y=-1680 count=1  #0Rx=118  
+row13 y=-1820 count=1  #0Xx=-16  
+
+r00 [B]
+r01 [B]  [B]
+r02 [B]  [?]  [?]
+r03 [?]  [?]  [E]  [B]
+r04 [$]  [R]  [B]
+r05 [B]  [B]
+r06 [R]
+r07 [?]  [B]
+r08 [E]
+r09 [$]  [?]
+r10 [E]
+r11 [B]  [B]
+r12 [R]
+r13 [X]
+
+edges:
+  r0.0B -> Br1.0, Br1.1
+  r1.0B -> Br2.0, ?r2.1
+  r1.1B -> ?r2.2, ?r2.1
+  r2.0B -> ?r3.0, ?r3.1
+  r2.1? -> Er3.2
+  r2.2? -> Br3.3
+  r3.0? -> $r4.0
+  r3.1? -> $r4.0, Rr4.1
+  r3.2E -> Rr4.1
+  r3.3B -> Br4.2, Rr4.1
+  r4.0$ -> Br5.0
+  r4.1R -> Br5.0
+  r4.2B -> Br5.1, Br5.0
+  r5.0B -> Rr6.0
+  r5.1B -> Rr6.0
+  r6.0R -> ?r7.0, Br7.1
+  r7.0? -> Er8.0
+  r7.1B -> Er8.0
+  r8.0E -> $r9.0, ?r9.1
+  r9.0$ -> Er10.0
+  r9.1? -> Er10.0
+  r10.0E -> Br11.0, Br11.1
+  r11.0B -> Rr12.0
+  r11.1B -> Rr12.0
+  r12.0R -> Xr13.0
+
+counts: Battle=11 Event=6 Elite=3 Shop=2 Rest=3 Boss=1 
+
+------------------------------------------------------------------------
+seed=20260101  rows=14  nodes=28  edges=37  paths=84
+
+row00 y=0 count=1  #0Bx=-78  
+row01 y=-140 count=2  #0Bx=-118  #1Bx=182  
+row02 y=-280 count=3  #0?x=-217  #1Ex=15  #2?x=237  
+row03 y=-420 count=2  #0Bx=-234  #1Bx=242  
+row04 y=-560 count=3  #0Bx=-245  #1Bx=-14  #2Rx=226  
+row05 y=-700 count=2  #0Bx=-229  #1Bx=189  
+row06 y=-840 count=1  #0Tx=86  
+row07 y=-980 count=2  #0?x=-199  #1Bx=151  
+row08 y=-1120 count=3  #0?x=-202  #1?x=3  #2Bx=261  
+row09 y=-1260 count=2  #0$x=-150  #1$x=183  
+row10 y=-1400 count=3  #0Ex=-260  #1Bx=-2  #2Bx=227  
+row11 y=-1540 count=2  #0Bx=-138  #1Bx=161  
+row12 y=-1680 count=1  #0Rx=35  
+row13 y=-1820 count=1  #0Xx=-61  
+
+r00 [B]
+r01 [B]  [B]
+r02 [?]  [E]  [?]
+r03 [B]  [B]
+r04 [B]  [B]  [R]
+r05 [B]  [B]
+r06 [T]
+r07 [?]  [B]
+r08 [?]  [?]  [B]
+r09 [$]  [$]
+r10 [E]  [B]  [B]
+r11 [B]  [B]
+r12 [R]
+r13 [X]
+
+edges:
+  r0.0B -> Br1.0, Br1.1
+  r1.0B -> ?r2.0, Er2.1
+  r1.1B -> ?r2.2
+  r2.0? -> Br3.0
+  r2.1E -> Br3.0, Br3.1
+  r2.2? -> Br3.1
+  r3.0B -> Br4.0, Br4.1
+  r3.1B -> Rr4.2, Br4.1
+  r4.0B -> Br5.0
+  r4.1B -> Br5.0, Br5.1
+  r4.2R -> Br5.1
+  r5.0B -> Tr6.0
+  r5.1B -> Tr6.0
+  r6.0T -> ?r7.0, Br7.1
+  r7.0? -> ?r8.0, ?r8.1
+  r7.1B -> Br8.2, ?r8.1
+  r8.0? -> $r9.0
+  r8.1? -> $r9.0
+  r8.2B -> $r9.1
+  r9.0$ -> Er10.0, Br10.1
+  r9.1$ -> Br10.2
+  r10.0E -> Br11.0
+  r10.1B -> Br11.0
+  r10.2B -> Br11.1
+  r11.0B -> Rr12.0
+  r11.1B -> Rr12.0
+  r12.0R -> Xr13.0
+
+counts: Battle=15 Event=5 Elite=2 Rest=2 Treasure=1 Shop=2 Boss=1 
+
+------------------------------------------------------------------------
