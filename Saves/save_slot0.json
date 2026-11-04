@@ -1,16 +1,17 @@
 {
     "version": 1,
-    "seed": 30020156,
+    "seed": 31481390,
     "generatorVersion": 1,
     "visitedPath": [
         0,
-        100
+        100,
+        200
     ],
     "act": 1,
     "characterId": "ironclad",
     "hp": 80,
     "maxHp": 80,
-    "gold": 99,
+    "gold": 199,
     "deck": [
         {
             "id": "strike",
@@ -54,6 +55,6 @@
         }
     ],
     "relics": [
-        "relic_blood_vial"
+        "relic_purse"
     ]
 }

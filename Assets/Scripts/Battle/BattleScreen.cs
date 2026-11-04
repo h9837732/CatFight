@@ -70,7 +70,9 @@ namespace CatFight.Battle
             public Text cost;
             public Text name;
             public Text desc;
+            public Text hint;        // “再点一次打出 / 选择目标”提示
             public Button button;
+            public float baseY;      // 未选中时的原始 y
         }
 
         // ------------------------------------------------------------------
@@ -246,50 +248,63 @@ namespace CatFight.Battle
         /// </summary>
         private void BuildPlayerPanel()
         {
+            // 玩家区扎根在屏幕左下角：立绘左边缘贴屏（略出屏裁切）、向上撑满，
+            // 血条与行动点压在底部，中间不留空隙。
             var root = UiKit.CreateRect(_root, "PlayerArea");
             root.anchorMin = root.anchorMax = new Vector2(0f, 0f);
             root.pivot = new Vector2(0f, 0f);
-            root.anchoredPosition = new Vector2(48f, 40f);
-            root.sizeDelta = new Vector2(340f, 520f);
+            root.anchoredPosition = new Vector2(0f, 0f);
+            root.sizeDelta = new Vector2(380f, 1080f);
 
-            const float W = 300f;
+            const float W = 340f;
+            const float BarY = 96f;        // 血条底边高度
+            const float EnergyY = 34f;     // 行动点区域底边高度
 
-            // --- 立绘（图片）。玩家图是竖图，用高度约束保证不裁切 ---
+            // --- 立绘（图片）。左边缘出屏、底边贴血条上方，中间不留空隙 ---
             var portrait = UiKit.CreateImage(root, "PlayerPortrait", Color.white, UiKit.Portrait);
             portrait.preserveAspect = true;
             UI.Assets2.ApplyWhiteKey(portrait, 0.80f, 0.14f);
             var prt = portrait.rectTransform;
-            prt.anchorMin = prt.anchorMax = new Vector2(0.5f, 0f);
-            prt.pivot = new Vector2(0.5f, 0f);
-            prt.anchoredPosition = new Vector2(0f, 176f);
-            prt.sizeDelta = new Vector2(W, 300f);      // 宽度上限 300，高度由 preserveAspect 控制
+            prt.anchorMin = prt.anchorMax = new Vector2(0f, 0f);
+            prt.pivot = new Vector2(0f, 0f);
+            prt.anchoredPosition = new Vector2(-26f, BarY + 40f);
+            prt.sizeDelta = new Vector2(W + 26f, 1080f - BarY - 40f);
 
             // 格挡徽章（叠在立绘右上角）
             var blockCircle = UiKit.CreateImage(root, "BlockCircle", Theme.BlockBlue, UiKit.Circle);
             var brt = blockCircle.rectTransform;
-            brt.anchorMin = brt.anchorMax = new Vector2(0.5f, 0f);
+            brt.anchorMin = brt.anchorMax = new Vector2(0f, 0f);
             brt.pivot = new Vector2(0.5f, 0f);
-            brt.anchoredPosition = new Vector2(W * 0.5f - 16f, 176f + W - 84f);
-            brt.sizeDelta = new Vector2(82f, 82f);
+            brt.anchoredPosition = new Vector2(W - 44f, 380f);
+            brt.sizeDelta = new Vector2(86f, 86f);
 
             _playerBlockText = UiKit.CreateText(blockCircle.transform, "Val", "0", Theme.FontHead, Color.white);
             UiKit.Stretch(_playerBlockText.rectTransform);
 
             var blockCap = UiKit.CreateText(root, "BlockCap", "格挡", Theme.FontTiny, Theme.InkFaint);
             var bct = blockCap.rectTransform;
-            bct.anchorMin = bct.anchorMax = new Vector2(0.5f, 0f);
+            bct.anchorMin = bct.anchorMax = new Vector2(0f, 0f);
             bct.pivot = new Vector2(0.5f, 1f);
-            bct.anchoredPosition = new Vector2(W * 0.5f - 16f, 176f + W - 88f);
-            bct.sizeDelta = new Vector2(82f, 22f);
+            bct.anchoredPosition = new Vector2(W - 44f, 376f);
+            bct.sizeDelta = new Vector2(86f, 22f);
 
-            // --- 血条（立绘下方）---
+            // --- 血条（贴屏幕底部区域，位于立绘下方）---
+            // 加一层深色底板，避免与立绘的橘猫毛色混在一起看不清
+            var hpPlate = UiKit.CreateImage(root, "HpPlate", new Color(0f, 0f, 0f, 0.55f), UiKit.RoundRect);
+            var plrt = hpPlate.rectTransform;
+            plrt.anchorMin = plrt.anchorMax = new Vector2(0f, 0f);
+            plrt.pivot = new Vector2(0f, 0f);
+            plrt.anchoredPosition = new Vector2(12f, BarY - 6f);
+            plrt.sizeDelta = new Vector2(316f, 46f);
+            hpPlate.raycastTarget = false;
+
             var hbrt = UiKit.CreateRect(root, "HpBarRoot");
-            hbrt.anchorMin = hbrt.anchorMax = new Vector2(0.5f, 0f);
-            hbrt.pivot = new Vector2(0.5f, 0f);
-            hbrt.anchoredPosition = new Vector2(0f, 146f);
-            hbrt.sizeDelta = new Vector2(W, 34f);
+            hbrt.anchorMin = hbrt.anchorMax = new Vector2(0f, 0f);
+            hbrt.pivot = new Vector2(0f, 0f);
+            hbrt.anchoredPosition = new Vector2(20f, BarY);
+            hbrt.sizeDelta = new Vector2(300f, 34f);
 
-            _playerHpFill = UiKit.CreateProgressBar(hbrt, "Hp", new Vector2(W, 34f),
+            _playerHpFill = UiKit.CreateProgressBar(hbrt, "Hp", new Vector2(300f, 34f),
                 Theme.HpBack, Theme.HpRed, segments: 8);
             var barRoot = _playerHpFill.transform.parent.GetComponent<RectTransform>();
             UiKit.Stretch(barRoot);
@@ -298,47 +313,46 @@ namespace CatFight.Battle
                 TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Stretch(_playerHpText.rectTransform);
 
-            // --- 行动点数（血条下方）---
+            // --- 行动点数（血条下方，屏幕最底）---
             var energyCap = UiKit.CreateText(root, "EnergyCap", "行动点", Theme.FontTiny, Theme.InkFaint,
                 TextAnchor.MiddleLeft);
             var ecrt = energyCap.rectTransform;
-            ecrt.anchorMin = ecrt.anchorMax = new Vector2(0.5f, 0f);
+            ecrt.anchorMin = ecrt.anchorMax = new Vector2(0f, 0f);
             ecrt.pivot = new Vector2(0f, 0f);
-            ecrt.anchoredPosition = new Vector2(-W * 0.5f, 116f);
-            ecrt.sizeDelta = new Vector2(120f, 24f);
+            ecrt.anchoredPosition = new Vector2(20f, EnergyY + 40f);
+            ecrt.sizeDelta = new Vector2(90f, 22f);
 
             _energyText = UiKit.CreateText(root, "EnergyVal", "3/3", Theme.FontTiny, Theme.InkFaint,
                 TextAnchor.MiddleRight);
             var evrt = _energyText.rectTransform;
-            evrt.anchorMin = evrt.anchorMax = new Vector2(0.5f, 0f);
+            evrt.anchorMin = evrt.anchorMax = new Vector2(0f, 0f);
             evrt.pivot = new Vector2(1f, 0f);
-            evrt.anchoredPosition = new Vector2(W * 0.5f, 116f);
-            evrt.sizeDelta = new Vector2(120f, 24f);
+            evrt.anchoredPosition = new Vector2(320f, EnergyY + 40f);
+            evrt.sizeDelta = new Vector2(90f, 22f);
 
             _energyRow = UiKit.CreateRect(root, "EnergyRow");
-            _energyRow.anchorMin = _energyRow.anchorMax = new Vector2(0.5f, 0f);
+            _energyRow.anchorMin = _energyRow.anchorMax = new Vector2(0f, 0f);
             _energyRow.pivot = new Vector2(0f, 0f);
-            _energyRow.anchoredPosition = new Vector2(-W * 0.5f, 50f);
-            _energyRow.sizeDelta = new Vector2(W, 56f);
+            _energyRow.anchoredPosition = new Vector2(20f, EnergyY);
+            _energyRow.sizeDelta = new Vector2(300f, 38f);
 
-            // --- 状态（最下面一行，不要底板）---
+            // --- 状态（叠在血条上方，不要底板）---
             _playerStatusText = UiKit.CreateText(root, "Statuses", "", Theme.FontTiny,
                 Theme.Gold, TextAnchor.MiddleLeft);
             var srt = _playerStatusText.rectTransform;
-            srt.anchorMin = srt.anchorMax = new Vector2(0.5f, 0f);
-            srt.pivot = new Vector2(0f, 1f);
-            srt.anchoredPosition = new Vector2(-W * 0.5f, 42f);
-            srt.sizeDelta = new Vector2(W, 40f);
+            srt.anchorMin = srt.anchorMax = new Vector2(0f, 0f);
+            srt.pivot = new Vector2(0f, 0f);
+            srt.anchoredPosition = new Vector2(20f, BarY + 44f);
+            srt.sizeDelta = new Vector2(300f, 34f);
             _playerStatusText.lineSpacing = 1.15f;
         }
 
+        /// <summary>敌人区。不再是居中矩形，而是覆盖全屏的坐标容器，
+        /// 具体站位由 EnemyLayout 按背景地平线计算（脚底落地）。</summary>
         private void BuildEnemyArea()
         {
             _enemyRow = UiKit.CreateRect(_root, "EnemyRow");
-            _enemyRow.anchorMin = _enemyRow.anchorMax = new Vector2(0.5f, 1f);
-            _enemyRow.pivot = new Vector2(0.5f, 1f);
-            _enemyRow.anchoredPosition = new Vector2(120f, -180f);
-            _enemyRow.sizeDelta = new Vector2(1100f, 380f);
+            UiKit.Stretch(_enemyRow);   // 全屏参考坐标系，归一化定位
         }
 
         private void BuildHandArea()
@@ -385,42 +399,46 @@ namespace CatFight.Battle
             _enemyViews.Clear();
 
             int n = _state.Enemies.Count;
-            float step = n <= 1 ? 0f : Mathf.Min(EnemyWidth + 60f, 900f / Mathf.Max(1, n - 1));
-            float total = EnemyWidth + step * (n - 1);
+            var slots = EnemyLayout.Compute(n);
 
             for (int i = 0; i < n; i++)
             {
                 var enemy = _state.Enemies[i];
-                float x = -total * 0.5f + EnemyWidth * 0.5f + i * step;
+                var slot = slots[i];
 
                 var root = UiKit.CreateRect(_enemyRow, "Enemy" + i);
-                root.anchorMin = root.anchorMax = new Vector2(0.5f, 1f);
-                root.pivot = new Vector2(0.5f, 1f);
-                root.anchoredPosition = new Vector2(x, 0f);
-                root.sizeDelta = new Vector2(EnemyWidth, 360f);
 
-                // 意图气泡
+                // 脚底锚点 → 归一化定位（相对全屏）
+                root.anchorMin = root.anchorMax = slot.groundAnchor;
+                root.pivot = new Vector2(0.5f, 0f);      // pivot 在底边中点
+                root.anchoredPosition = Vector2.zero;
+                root.sizeDelta = new Vector2(slot.size.x, slot.size.y);
+
+                // 立绘高度占 root 的约 66%，上方留意图气泡、下方留名字/血条
+                float portH = slot.size.y * 0.66f;
+
+                // 意图气泡（紧贴立绘上方）
                 var intentBg = UiKit.CreatePanel(root, "Intent", Theme.PanelBg.WithAlpha(0.85f));
                 var ibrt = intentBg.rectTransform;
                 ibrt.anchorMin = ibrt.anchorMax = new Vector2(0.5f, 1f);
-                ibrt.pivot = new Vector2(0.5f, 1f);
-                ibrt.anchoredPosition = new Vector2(0f, 0f);
-                ibrt.sizeDelta = new Vector2(180f, 56f);
+                ibrt.pivot = new Vector2(0.5f, 0f);
+                ibrt.anchoredPosition = new Vector2(0f, -10f);
+                ibrt.sizeDelta = new Vector2(168f, 52f);
 
                 var intentText = UiKit.CreateText(intentBg.transform, "IntentText", "", Theme.FontSmall, Theme.Paper);
                 UiKit.Stretch(intentText.rectTransform, 4f);
 
-                // 敌人立绘占位
+                // 敌人立绘：底边对齐 root 底边（即脚底落在地面线上），向上生长
                 var enemySprite = UI.Assets2.Enemy(i);
                 var portrait = enemySprite != null
                     ? UiKit.CreateImage(root, "Portrait", Color.white, enemySprite, raycast: true)
                     : UiKit.CreateImage(root, "Portrait", Theme.PaperDark, UiKit.Circle, raycast: true);
                 portrait.preserveAspect = true;
                 var prt = portrait.rectTransform;
-                prt.anchorMin = prt.anchorMax = new Vector2(0.5f, 1f);
-                prt.pivot = new Vector2(0.5f, 1f);
-                prt.anchoredPosition = new Vector2(0f, -64f);
-                prt.sizeDelta = new Vector2(160f, 160f);
+                prt.anchorMin = prt.anchorMax = new Vector2(0.5f, 0f);   // 底边对齐
+                prt.pivot = new Vector2(0.5f, 0f);
+                prt.anchoredPosition = new Vector2(0f, 56f);             // 抬高一点，给名字/血条让位
+                prt.sizeDelta = new Vector2(slot.size.x * 0.86f, portH);
 
                 if (enemySprite == null)
                 {
@@ -435,37 +453,33 @@ namespace CatFight.Battle
                 var nameT = UiKit.CreateOutlinedText(root, "Name", enemy.name, Theme.FontSmall, Color.white,
                     new Color(0f, 0f, 0f, 0.8f), TextAnchor.MiddleCenter, FontStyle.Bold);
                 var nrt = nameT.rectTransform;
-                nrt.anchorMin = nrt.anchorMax = new Vector2(0.5f, 1f);
-                nrt.pivot = new Vector2(0.5f, 1f);
-                nrt.anchoredPosition = new Vector2(0f, -228f);
-                nrt.sizeDelta = new Vector2(EnemyWidth, 30f);
+                nrt.anchorMin = nrt.anchorMax = new Vector2(0.5f, 0f);
+                nrt.pivot = new Vector2(0.5f, 0f);
+                nrt.anchoredPosition = new Vector2(0f, 30f);
+                nrt.sizeDelta = new Vector2(slot.size.x, 28f);
 
-                // 血条
+                // 血条（名字下面）
                 var hprt = UiKit.CreateRect(root, "HpRoot");
-                hprt.anchorMin = hprt.anchorMax = new Vector2(0.5f, 1f);
-                hprt.pivot = new Vector2(0.5f, 1f);
-                hprt.anchoredPosition = new Vector2(0f, -262f);
-                hprt.sizeDelta = new Vector2(EnemyWidth - 50f, 26f);
+                hprt.anchorMin = hprt.anchorMax = new Vector2(0.5f, 0f);
+                hprt.pivot = new Vector2(0.5f, 0f);
+                hprt.anchoredPosition = new Vector2(0f, 8f);
+                hprt.sizeDelta = new Vector2(slot.size.x * 0.82f, 22f);
 
-                var fill = UiKit.CreateProgressBar(hprt, "Hp", new Vector2(EnemyWidth - 50f, 26f),
+                var fill = UiKit.CreateProgressBar(hprt, "Hp", new Vector2(slot.size.x * 0.82f, 22f),
                     Theme.HpBack, Theme.HpRed);
                 UiKit.Stretch(fill.transform.parent.GetComponent<RectTransform>());
 
-                var hpText = UiKit.CreateOutlinedText(root, "HpText", "", Theme.FontTiny, Color.white,
+                var hpText = UiKit.CreateOutlinedText(hprt, "HpText", "", Theme.FontTiny, Color.white,
                     new Color(0f, 0f, 0f, 0.85f));
-                var hptrt = hpText.rectTransform;
-                hptrt.anchorMin = hptrt.anchorMax = new Vector2(0.5f, 1f);
-                hptrt.pivot = new Vector2(0.5f, 1f);
-                hptrt.anchoredPosition = new Vector2(0f, -290f);
-                hptrt.sizeDelta = new Vector2(EnemyWidth, 26f);
+                UiKit.Stretch(hpText.rectTransform);
 
                 var statusT = UiKit.CreateOutlinedText(root, "Status", "", Theme.FontTiny, Theme.Gold,
                     new Color(0f, 0f, 0f, 0.85f));
                 var strt = statusT.rectTransform;
-                strt.anchorMin = strt.anchorMax = new Vector2(0.5f, 1f);
+                strt.anchorMin = strt.anchorMax = new Vector2(0.5f, 0f);
                 strt.pivot = new Vector2(0.5f, 1f);
-                strt.anchoredPosition = new Vector2(0f, -316f);
-                strt.sizeDelta = new Vector2(EnemyWidth, 40f);
+                strt.anchoredPosition = new Vector2(0f, 2f);
+                strt.sizeDelta = new Vector2(slot.size.x, 30f);
 
                 var btn = portrait.gameObject.AddComponent<Button>();
                 btn.targetGraphic = portrait;
@@ -600,6 +614,19 @@ namespace CatFight.Battle
                 drt.offsetMin = new Vector2(12f, 12f);
                 drt.offsetMax = new Vector2(-12f, -48f);
 
+                // 选中提示条（默认隐藏）
+                var hint = UiKit.CreateOutlinedText(root, "Hint",
+                    card.Data.target == TargetMode.SingleEnemy ? "选择目标" : "再点一次打出",
+                    Theme.FontTiny, Theme.Gold, new Color(0f, 0f, 0f, 0.85f),
+                    TextAnchor.MiddleCenter, FontStyle.Bold);
+                var hintRt = hint.rectTransform;
+                hintRt.anchorMin = new Vector2(0f, 1f);
+                hintRt.anchorMax = new Vector2(1f, 1f);
+                hintRt.pivot = new Vector2(0.5f, 0f);
+                hintRt.anchoredPosition = new Vector2(0f, 8f);
+                hintRt.sizeDelta = new Vector2(-8f, 26f);
+                hint.gameObject.SetActive(false);
+
                 var btn = root.gameObject.AddComponent<Button>();
                 btn.targetGraphic = bg;
                 int handIdx = i;
@@ -607,7 +634,8 @@ namespace CatFight.Battle
 
                 _cardViews.Add(new CardView
                 {
-                    handIndex = i, root = root, bg = bg, cost = costT, name = nameT, desc = descT, button = btn
+                    handIndex = i, root = root, bg = bg, cost = costT, name = nameT, desc = descT,
+                    hint = hint, button = btn, baseY = 0f
                 });
             }
 
@@ -619,8 +647,15 @@ namespace CatFight.Battle
             foreach (var cv in _cardViews)
             {
                 bool selected = cv.handIndex == _selectedHandIndex;
-                cv.root.anchoredPosition = new Vector2(cv.root.anchoredPosition.x, selected ? 60f : 0f);
-                cv.root.localScale = Vector3.one * (selected ? 1.1f : 1f);
+
+                cv.root.anchoredPosition = new Vector2(cv.root.anchoredPosition.x, selected ? cv.baseY + 56f : cv.baseY);
+                cv.root.localScale = Vector3.one * (selected ? 1.08f : 1f);
+
+                // 选中牌置顶，避免被右侧牌遮住；未选中的卡保持原图层
+                cv.root.SetSiblingIndex(selected ? _cardViews.Count - 1 : cv.handIndex);
+
+                if (cv.hint != null)
+                    cv.hint.gameObject.SetActive(selected);
             }
         }
 
@@ -686,7 +721,7 @@ namespace CatFight.Battle
 
             // 行动点：圆点从左到右排列（不占用 _energyText，因为它已固定在玩家区）
             int max = Mathf.Max(_state.EnergyMax, 1);
-            float size = Mathf.Min(52f, 300f / max - 10f);
+            float size = Mathf.Min(38f, 300f / max - 10f);
             float step = size + 10f;
 
             for (int i = 0; i < max; i++)
@@ -735,21 +770,25 @@ namespace CatFight.Battle
 
             var card = _state.Hand[handIndex];
 
-            if (_selectedHandIndex == handIndex)
-            {
-                _selectedHandIndex = -1;
-                ApplySelectionHighlight();
-                return;
-            }
-
-            if (card.Data.target == TargetMode.SingleEnemy)
+            // ---- 防误触 ----
+            // 规则：第一下永远只“进入待打出”（牌抬起 + 高亮），不会直接出牌。
+            //   · 已选中另一张牌 → 改成选中新的那张，不打出任何牌
+            //   · 再点一次同一张牌 → 才真正打出（有目标牌仍需再点敌人）
+            if (_selectedHandIndex != handIndex)
             {
                 _selectedHandIndex = handIndex;
                 ApplySelectionHighlight();
                 return;
             }
 
-            // 无目标卡：直接打出
+            // 同一张牌被第二次点击
+            if (card.Data.target == TargetMode.SingleEnemy)
+            {
+                // 需要目标：保持选中，等待点击敌人（牌上会提示“选择目标”）
+                return;
+            }
+
+            // 无目标牌：此时才打出
             _selectedHandIndex = -1;
             _state.PlayCard(handIndex, 0);
             AfterPlayerAction();

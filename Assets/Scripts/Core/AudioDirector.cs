@@ -31,7 +31,45 @@ namespace CatFight.Core
             _stinger.loop = false;
             _stinger.playOnAwake = false;
 
+            EnsureAudioListener();
             ApplySettings();
+
+            // 切场景后如果新场景没有 AudioListener，补给新的（避免后续静音）
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+        }
+
+        private void OnDestroy()
+        {
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+        }
+
+        private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
+        {
+            EnsureAudioListener();
+            RefreshVolumes();
+        }
+
+        /// <summary>
+        /// 如果没有 AudioListener，音频根本不会出声（典型情况：相机是代码创建的，
+        /// 忘了加 AudioListener）。这里做一道兜底，避免“静音但找不到原因”。
+        /// </summary>
+        private static void EnsureAudioListener()
+        {
+            if (Object.FindFirstObjectByType<AudioListener>() != null) return;
+
+            var cam = Camera.main;
+            if (cam != null)
+            {
+                cam.gameObject.AddComponent<AudioListener>();
+                Debug.Log("[Audio] 相机缺少 AudioListener，已自动补上");
+            }
+            else
+            {
+                var go = new GameObject("AudioListener");
+                go.AddComponent<AudioListener>();
+                Object.DontDestroyOnLoad(go);
+                Debug.Log("[Audio] 场景内无相机也无 AudioListener，已创建独立 AudioListener");
+            }
         }
 
         /// <summary>从存档设置同步主音量。</summary>
@@ -59,8 +97,8 @@ namespace CatFight.Core
 
         private void RefreshVolumes()
         {
-            if (_music != null) _music.volume = _masterVolume * (muted ? 0f : 0.55f);
-            if (_stinger != null) _stinger.volume = _masterVolume * (muted ? 0f : 0.9f);
+            if (_music != null) _music.volume = _masterVolume * (muted ? 0f : 0.70f);
+            if (_stinger != null) _stinger.volume = _masterVolume * (muted ? 0f : 0.90f);
         }
 
         private bool muted;
@@ -69,7 +107,7 @@ namespace CatFight.Core
         // 战斗音乐
         // ------------------------------------------------------------------
 
-        /// <summary>进入战斗：播开场音，然后无缝接循环曲。</summary>
+        /// <summary>进入战斗：开场音当前奏（只取开头几秒），随即交叉淡入循环曲。</summary>
         public void PlayBattle()
         {
             if (_music == null) return;
@@ -83,12 +121,16 @@ namespace CatFight.Core
             {
                 _stinger.Stop();
                 _stinger.clip = start;
-                _stinger.volume = _masterVolume * (muted ? 0f : 0.9f);
+                _stinger.volume = _masterVolume * (muted ? 0f : 0.90f);
                 _stinger.Play();
 
-                // 开场音播完后再把循环曲音量推上来，避免重叠
+                // 开场音只做前奏：IntroSeconds 后开始推循环曲，再 StopIntroSeconds 关掉开场音
                 CancelInvoke(nameof(RaiseMusic));
-                Invoke(nameof(RaiseMusic), Mathf.Max(0.1f, start.length - 0.6f));
+                CancelInvoke(nameof(StopIntro));
+
+                float intro = Mathf.Min(IntroSeconds, Mathf.Max(0.5f, start.length * 0.5f));
+                Invoke(nameof(RaiseMusic), intro);
+                Invoke(nameof(StopIntro), intro + IntroSeconds + 1.5f);
             }
             else
             {
@@ -96,9 +138,17 @@ namespace CatFight.Core
             }
         }
 
+        /// <summary>开场音当作前奏播放的秒数，之后交叉到循环曲。</summary>
+        private const float IntroSeconds = 4f;
+
+        private void StopIntro()
+        {
+            if (_stinger != null) _stinger.Stop();
+        }
+
         private void RaiseMusic()
         {
-            if (_music != null) _music.volume = _masterVolume * (muted ? 0f : 0.55f);
+            if (_music != null) _music.volume = _masterVolume * (muted ? 0f : 0.70f);
             _fadeTarget = 1f;
         }
 
@@ -106,6 +156,7 @@ namespace CatFight.Core
         public void StopBattle(float fadeSeconds = 0.5f)
         {
             CancelInvoke(nameof(RaiseMusic));
+            CancelInvoke(nameof(StopIntro));
             if (_stinger != null) _stinger.Stop();
             if (_music != null) _music.Stop();
         }

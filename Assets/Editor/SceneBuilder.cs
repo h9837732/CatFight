@@ -41,7 +41,7 @@ namespace CatFight.EditorTools
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
             // 相机（UI 是 Overlay，相机只负责清屏背景色）
-            var camGo = new GameObject("Main Camera", typeof(Camera));
+            var camGo = new GameObject("Main Camera", typeof(Camera), typeof(AudioListener));
             var cam = camGo.GetComponent<Camera>();
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.11f, 0.10f, 0.09f);
