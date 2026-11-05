@@ -173,12 +173,12 @@ namespace CatFight.Battle
 
             Add(new CardData
             {
-                id = "round_head", name = "炸毛", type = CardType.Power, rarity = CardRarity.Uncommon,
+                id = "round_head", name = "足球形态", type = CardType.Power, rarity = CardRarity.Uncommon,
                 cost = 1, target = TargetMode.Self,
                 effects = { new CardEffect { op = EffectOp.ApplySelf, value = 3, status = StatusType.Dexterity } },
                 upgradedEffects = { new CardEffect { op = EffectOp.ApplySelf, value = 4, status = StatusType.Dexterity } },
-                // id 保留 round_head：名字改成“炸毛”了，但 id 是留给旧存档的
-                flavour = "毛全竖起来，整只猫大一圈。"
+                // id 保留 round_head（改过两次名了）：id 是存档用的，永久固定，不要再改
+                flavour = "缩成一团，圆得能拿去踢。"
             });
 
             Add(new CardData
