@@ -1191,9 +1191,17 @@ namespace CatFight.Battle
             _turnText.text = $"第 {_state.TurnNumber} 回合";
             if (_handCountText != null)
             {
-                _handCountText.text = $"手牌 {_state.Hand.Count}/{BattleState.HandLimit}";
-                _handCountText.color = _state.Hand.Count >= BattleState.HandLimit
-                    ? Theme.Warn : Theme.Paper.WithAlpha(0.75f);
+                int hand = _state.Hand.Count;
+                int limit = BattleState.HandLimit;
+                int over = _state.DiscardRequired;
+
+                _handCountText.text = over > 0
+                    ? $"手牌 {hand}/{limit} · 结束需弃 {over}"
+                    : $"手牌 {hand}/{limit}";
+
+                _handCountText.color = over > 0 ? Theme.Bad
+                                    : hand >= limit ? Theme.Warn
+                                    : Theme.Paper.WithAlpha(0.75f);
             }
 
             // 玩家
@@ -1414,6 +1422,14 @@ namespace CatFight.Battle
             if (_busy || _state.Phase != BattlePhase.PlayerAction) return;
             ClearSelection();
             if (_selectedItemSlot >= 0) ClearItemSelection();
+
+            // 手牌超过 5 张：先让玩家自选弃牌，弃完才进敌人回合
+            if (_state.NeedsDiscard)
+            {
+                ShowDiscardDialog();
+                return;
+            }
+
             StartCoroutine(EnemyTurnRoutine());
         }
 
@@ -1562,6 +1578,222 @@ namespace CatFight.Battle
                            + (_request.kind == GameSession.NodeKind.Boss ? 80 : 0);
 
             ShowVictoryOverlay(hpAfter, goldGained);
+        }
+
+        // ------------------------------------------------------------------
+        // 弃牌环节（结束回合前手牌超过上限时）
+        // ------------------------------------------------------------------
+
+        private readonly List<int> _discardPicks = new List<int>();
+        private readonly List<RectTransform> _discardCardRoots = new List<RectTransform>();
+        private readonly List<Image> _discardCardBgs = new List<Image>();
+        private Text _discardCounterText;
+        private Button _discardConfirmBtn;
+
+        /// <summary>
+        /// 玩家回合结束时手牌 > 5 张，弹出弃牌面板。
+        /// 必须选中正好「超出张数」的牌才能确认，选完才进敌人回合。
+        /// 期间所有操作被 _busy 锁住。
+        /// </summary>
+        private void ShowDiscardDialog()
+        {
+            _busy = true;
+            _discardPicks.Clear();
+            _discardCardRoots.Clear();
+            _discardCardBgs.Clear();
+
+            UiKit.DestroyChildren(_overlay);
+            UiKit.CreateModalShade(_overlay);
+
+            var panel = UiKit.CreateDialog(_overlay, "弃牌", new Vector2(1240f, 780f));
+
+            int need = _state.DiscardRequired;
+
+            var info = UiKit.CreateText(panel, "Info",
+                $"回合结束手牌上限 {BattleState.EndTurnHandLimit} 张。当前手牌 {_state.Hand.Count} 张，请选 {need} 张弃掉。",
+                Theme.FontSmall, Theme.Paper);
+            UiKit.AnchorCenter(info.rectTransform, new Vector2(0f, 318f), new Vector2(1100f, 40f));
+
+            _discardCounterText = UiKit.CreateText(panel, "Counter", $"已选 0/{need}",
+                Theme.FontSmall, Theme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.AnchorCenter(_discardCounterText.rectTransform, new Vector2(0f, 276f), new Vector2(400f, 36f));
+
+            // --- 卡牌网格：每行最多 5 张，两行摆下 10 张 ---
+            // 用网格而不是横排叠压，是因为这里玩家必须读清楚每张牌才能决定弃谁。
+            int n = _state.Hand.Count;
+            const float cw = 200f, ch = 250f, gx = 14f, gy = 12f;
+            const int perRow = 5;
+            int cols = Mathf.Min(n, perRow);
+            int rows = Mathf.CeilToInt(n / (float)perRow);
+
+            float gridW = cols * cw + (cols - 1) * gx;
+            float gridH = rows * ch + (rows - 1) * gy;
+
+            var grid = UiKit.CreateRect(panel, "DiscardGrid");
+            UiKit.AnchorCenter(grid, new Vector2(0f, -26f), new Vector2(gridW, gridH));
+
+            for (int i = 0; i < n; i++)
+            {
+                var card = _state.Hand[i];
+
+                int col = i % perRow;
+                int row = i / perRow;
+                float x = -gridW * 0.5f + cw * 0.5f + col * (cw + gx);
+                float y = gridH * 0.5f - ch * 0.5f - row * (ch + gy);
+
+                Color typeColor = card.Data.type == CardType.Attack ? Theme.Attack
+                                : card.Data.type == CardType.Skill ? Theme.Skill
+                                : Theme.Power;
+
+                var root = UiKit.CreateRect(grid, "DCard" + i);
+                root.anchorMin = root.anchorMax = new Vector2(0.5f, 0.5f);
+                root.pivot = new Vector2(0.5f, 0.5f);
+                root.anchoredPosition = new Vector2(x, y);
+                root.sizeDelta = new Vector2(cw, ch);
+
+                var bg = UiKit.CreateImage(root, "Bg", typeColor, UI.Assets2.CardBg, raycast: true);
+                UiKit.Stretch(bg.rectTransform);
+                if (bg.sprite == null) { bg.sprite = UiKit.RoundRect; bg.type = Image.Type.Sliced; }
+
+                // 顶部压一层暗色，保证左上费用与卡名可读
+                var scrim = UiKit.CreateImage(root, "Scrim", new Color(0f, 0f, 0f, 0.28f));
+                var srt = scrim.rectTransform;
+                srt.anchorMin = new Vector2(0f, 0.34f);
+                srt.anchorMax = new Vector2(1f, 1f);
+                srt.offsetMin = Vector2.zero;
+                srt.offsetMax = Vector2.zero;
+                scrim.raycastTarget = false;
+
+                // 费用
+                var cc = UiKit.CreateImage(root, "Cost", Theme.EnergyCyan, UiKit.Circle);
+                var ccrt = cc.rectTransform;
+                ccrt.anchorMin = ccrt.anchorMax = new Vector2(0f, 1f);
+                ccrt.pivot = new Vector2(0f, 1f);
+                ccrt.anchoredPosition = new Vector2(8f, -8f);
+                ccrt.sizeDelta = new Vector2(52f, 52f);
+                var costT = UiKit.CreateText(cc.transform, "T", card.Cost.ToString(),
+                    Theme.FontBody, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+                UiKit.Stretch(costT.rectTransform);
+
+                // 卡名（在网格中间，压在卡图上）
+                var nameT = UiKit.CreateOutlinedText(root, "Name", card.Name, Theme.FontSmall,
+                    Color.white, new Color(0f, 0f, 0f, 0.85f), TextAnchor.MiddleCenter, FontStyle.Bold);
+                var nrt = nameT.rectTransform;
+                nrt.anchorMin = new Vector2(0f, 0.42f);
+                nrt.anchorMax = new Vector2(1f, 0.42f);
+                nrt.pivot = new Vector2(0.5f, 0.5f);
+                nrt.anchoredPosition = new Vector2(0f, 4f);
+                nrt.sizeDelta = new Vector2(-16f, 36f);
+
+                // 描述（下半部）
+                var descT = UiKit.CreateOutlinedText(root, "Desc", card.Description, Theme.FontTiny,
+                    Color.white, new Color(0f, 0f, 0f, 0.85f), TextAnchor.UpperCenter);
+                var drt = descT.rectTransform;
+                drt.anchorMin = new Vector2(0f, 0f);
+                drt.anchorMax = new Vector2(1f, 0.42f);
+                drt.offsetMin = new Vector2(10f, 12f);
+                drt.offsetMax = new Vector2(-10f, -6f);
+
+                // 选中标记：红色描边 + “弃”角标
+                var mark = UiKit.CreateImage(root, "Mark", Theme.Bad.WithAlpha(0.55f), UiKit.RoundRect);
+                mark.type = Image.Type.Sliced;
+                UiKit.Stretch(mark.rectTransform, 3f);
+                mark.raycastTarget = false;
+                mark.gameObject.SetActive(false);
+
+                var badge = UiKit.CreateImage(root, "PickBadge", Theme.Bad, UiKit.Circle);
+                var brt = badge.rectTransform;
+                brt.anchorMin = brt.anchorMax = new Vector2(0.5f, 0.5f);
+                brt.anchoredPosition = Vector2.zero;
+                brt.sizeDelta = new Vector2(84f, 84f);
+                var bt = UiKit.CreateText(badge.transform, "T", "弃", Theme.FontHead, Color.white,
+                    TextAnchor.MiddleCenter, FontStyle.Bold);
+                UiKit.Stretch(bt.rectTransform);
+                badge.raycastTarget = false;
+                badge.gameObject.SetActive(false);
+
+                var btn = root.gameObject.AddComponent<Button>();
+                btn.targetGraphic = bg;
+                int idx = i;
+                btn.onClick.AddListener(() => ToggleDiscardPick(idx));
+
+                _discardCardRoots.Add(root);
+                _discardCardBgs.Add(bg);
+            }
+
+            // --- 确认按钮 ---
+            _discardConfirmBtn = UiKit.CreateButton(panel, "DiscardOk", $"弃牌（0/{need}）", Theme.FontBody,
+                Theme.InkSoft, Theme.Paper, ConfirmDiscard);
+            UiKit.AnchorCenter(_discardConfirmBtn.GetComponent<RectTransform>(),
+                new Vector2(0f, -328f), new Vector2(340f, 64f));
+
+            var hint = UiKit.CreateText(panel, "Hint", "选中的牌进入弃牌堆，未选中的保留到下回合。",
+                Theme.FontTiny, Theme.InkFaint);
+            UiKit.AnchorCenter(hint.rectTransform, new Vector2(0f, -368f), new Vector2(1100f, 28f));
+
+            RefreshDiscardSelection();
+        }
+
+        private void ToggleDiscardPick(int handIndex)
+        {
+            int need = _state.DiscardRequired;
+
+            if (_discardPicks.Contains(handIndex))
+                _discardPicks.Remove(handIndex);
+            else if (_discardPicks.Count < need)
+                _discardPicks.Add(handIndex);          // 选满了就不再加
+
+            RefreshDiscardSelection();
+        }
+
+        private void RefreshDiscardSelection()
+        {
+            int need = _state.DiscardRequired;
+
+            for (int i = 0; i < _discardCardRoots.Count; i++)
+            {
+                var root = _discardCardRoots[i];
+                bool picked = _discardPicks.Contains(i);
+
+                var mark = root.Find("Mark");
+                if (mark != null) mark.gameObject.SetActive(picked);
+
+                var badge = root.Find("PickBadge");
+                if (badge != null) badge.gameObject.SetActive(picked);
+
+                // 选中的牌略微下沉，视觉上像被“推出去”
+                root.localScale = Vector3.one * (picked ? 0.96f : 1f);
+
+                if (_discardCardBgs[i] != null)
+                    _discardCardBgs[i].color = picked ? new Color(0.55f, 0.55f, 0.55f, 1f) : Color.white;
+            }
+
+            if (_discardCounterText != null)
+                _discardCounterText.text = $"已选 {_discardPicks.Count}/{need}";
+
+            if (_discardConfirmBtn != null)
+            {
+                bool ready = _discardPicks.Count == need;
+                var label = _discardConfirmBtn.GetComponentInChildren<Text>();
+                if (label != null) label.text = $"弃牌（{_discardPicks.Count}/{need}）";
+                UiKit.SetButtonEnabled(_discardConfirmBtn, ready);
+            }
+        }
+
+        private void ConfirmDiscard()
+        {
+            int need = _state.DiscardRequired;
+            if (_discardPicks.Count != need) return;
+
+            UiKit.DestroyChildren(_overlay);
+            _state.DiscardFromHand(new List<int>(_discardPicks));
+            _discardPicks.Clear();
+            _discardCardRoots.Clear();
+            _discardCardBgs.Clear();
+
+            _busy = false;
+            RefreshAll();
+            StartCoroutine(EnemyTurnRoutine());
         }
 
         private void ShowVictoryOverlay(int hpAfter, int goldGained)

@@ -150,6 +150,15 @@ namespace CatFight.Battle
         /// <summary>默认保留，手牌才会真正累积到 10 张。</summary>
         public HandPolicy handPolicy = HandPolicy.KeepAll;
 
+        /// <summary>
+        /// 回合开始的抽牌方式（仅 KeepAll 有意义）：
+        /// false（默认）= 固定抽 DrawPerTurn 张。配合「结束回合手牌≤ 5」→ 手牌总是 10 张，
+        ///                每回合都能在 10 张里挑 5 张带走（选择权最大，但每回合必弃）。
+        /// true         = 补齐到 EndTurnHandLimit 张：保留 2 张就只抽 3 张，
+        ///                只有抽牌类效果（药水/卡）才会把牌堆到 5 张以上。
+        /// </summary>
+        public bool drawFillToEndLimit = false;
+
         public BattleUnit Player { get; private set; }
         public List<EnemyUnit> Enemies { get; private set; } = new List<EnemyUnit>();
 
@@ -263,12 +272,13 @@ namespace CatFight.Battle
             }
 
             // 4. 抽牌。
-            //    KeepAll 下按空位抽：手牌 8 张就只抽 2 张，满 10 张就不再抽，
-            //    避免把手牌溢出的牌白白烧进弃牌堆。
+            //    KeepAll 下按空位抽，避免把溢出的牌白白烧进弃牌堆：
+            //    默认封顶 HandLimit(10)，打开 drawFillToEndLimit 则封顶 EndTurnHandLimit(5)。
             int drawN = DrawPerTurn;
             if (handPolicy == HandPolicy.KeepAll)
             {
-                int space = HandLimit - Hand.Count;
+                int cap = drawFillToEndLimit ? EndTurnHandLimit : HandLimit;
+                int space = cap - Hand.Count;
                 drawN = space <= 0 ? 0 : Math.Min(DrawPerTurn, space);
                 if (drawN < DrawPerTurn)
                     LogLine(drawN == 0 ? "手牌已满，本回合不抽牌" : $"手牌接近上限，本回合只抽 {drawN} 张");
@@ -534,14 +544,47 @@ namespace CatFight.Battle
         // 回合结束 / 敌人回合
         // ------------------------------------------------------------------
 
+        /// <summary>回合结束时允许保留的手牌数。超过就要进入弃牌环节。</summary>
+        public const int EndTurnHandLimit = 5;
+
+        /// <summary>是否需要在结束回合前手动弃牌（手牌超过 EndTurnHandLimit）。</summary>
+        public bool NeedsDiscard => Hand.Count > EndTurnHandLimit;
+
+        /// <summary>本回合玩家必须弃掉的张数。</summary>
+        public int DiscardRequired => Math.Max(0, Hand.Count - EndTurnHandLimit);
+
+        /// <summary>
+        /// 把指定下标的牌从手牌移入弃牌堆（玩家自选弃牌用）。
+        /// 下标降序处理，避免删除后后续下标偏移。
+        /// </summary>
+        public void DiscardFromHand(List<int> handIndices)
+        {
+            if (handIndices == null || handIndices.Count == 0) return;
+
+            var sorted = new List<int>(handIndices);
+            sorted.Sort();
+            sorted.Reverse();
+
+            foreach (int i in sorted)
+            {
+                if (i < 0 || i >= Hand.Count) continue;
+                DiscardPile.Add(Hand[i]);
+                Hand.RemoveAt(i);
+            }
+
+            LogLine($"弃掉 {sorted.Count} 张牌，手牌剩 {Hand.Count} 张");
+            Changed();
+        }
+
         public void EndTurn()
         {
             if (Phase != BattlePhase.PlayerAction) return;
 
             Phase = BattlePhase.TurnEnding;
 
-            // 手牌保留：不在此处弃牌。为了让手牌一直看得见，实际弃牌推迟到
-            // 下一回合的 StartPlayerTurn 开头（见需求：“结束回合时不要让手牌消失”）。
+            // 手牌保留：不在此处弃牌。超过 EndTurnHandLimit 的部分由玩家
+            // 在「弃牌环节」自行选择（见 BattleScreen.ShowDiscardDialog）；
+            // 未超限的牌跨回合保留，所以手牌会在 0~5 之间累积。
 
             // 玩家回合结束状态：再生、易伤递减
             int regen = Player.GetStatus(StatusType.Regen);
