@@ -948,7 +948,7 @@ namespace CatFight.Battle
                 bg.color = new Color(dim, dim, dim, 1f);
 
                 // --- 卡面主图（固定占上半部，不拉伸变形）---
-                var artSprite = UI.Assets2.CardArt(card.Data.type);
+                var artSprite = UI.Assets2.CardArt(card.Data.id, card.Data.type);
                 if (artSprite != null)
                 {
                     var artArea = UiKit.CreateRect(root, "ArtArea");

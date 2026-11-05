@@ -1,21 +1,14 @@
 {
     "version": 1,
-    "seed": 37334500,
+    "seed": 12345,
     "generatorVersion": 1,
-    "visitedPath": [
-        0,
-        100
-    ],
+    "visitedPath": [],
     "act": 1,
     "characterId": "ironclad",
     "hp": 80,
     "maxHp": 80,
     "gold": 99,
     "deck": [
-        {
-            "id": "strike",
-            "upgraded": false
-        },
         {
             "id": "strike",
             "upgraded": false
@@ -51,11 +44,13 @@
         {
             "id": "bash",
             "upgraded": false
+        },
+        {
+            "id": "heal",
+            "upgraded": false
         }
     ],
-    "relics": [
-        "relic_lantern"
-    ],
+    "relics": [],
     "items": [
         "item_heal_potion"
     ]

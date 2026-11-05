@@ -134,7 +134,11 @@ namespace CatFight.Battle
     public class BattleState
     {
         public const int HandLimit = 10;
-        public const int DrawPerTurn = 5;
+        /// <summary>
+        /// 每回合抽牌数。从 5 降到 3：手牌不再自然堆到上限，
+        /// 弃牌环节只在“没出牌 / 用了抽牌效果”时才触发，而不是每回合必做。
+        /// </summary>
+        public const int DrawPerTurn = 3;
 
         /// <summary>
         /// 回合结束的手牌处理策略。
@@ -152,10 +156,9 @@ namespace CatFight.Battle
 
         /// <summary>
         /// 回合开始的抽牌方式（仅 KeepAll 有意义）：
-        /// false（默认）= 固定抽 DrawPerTurn 张。配合「结束回合手牌≤ 5」→ 手牌总是 10 张，
-        ///                每回合都能在 10 张里挑 5 张带走（选择权最大，但每回合必弃）。
-        /// true         = 补齐到 EndTurnHandLimit 张：保留 2 张就只抽 3 张，
-        ///                只有抽牌类效果（药水/卡）才会把牌堆到 5 张以上。
+        /// false（默认）= 固定抽 DrawPerTurn(3) 张，封顶 HandLimit(10)。
+        /// true         = 补齐到 EndTurnHandLimit 张：保留 2 张就只抽 3 张。
+        /// 抽牌数降到 3 后，默认模式已经不会把牌堆满，一般不需要打开这个开关。
         /// </summary>
         public bool drawFillToEndLimit = false;
 
@@ -248,7 +251,7 @@ namespace CatFight.Battle
 
             // 0. 回合结束的手牌处理：
             //    KeepAll（默认）→ 手牌跨回合保留，最多累到 HandLimit(10)；
-            //    DiscardAll     → 开局前先清空，每回合重新抽 5 张。
+            //    DiscardAll     → 开局前先清空，每回合重新抽 DrawPerTurn 张。
             // 之所以把弃牌放在这里而不是 EndTurn：结束回合时手牌不消失，看得见更直观。
             if (handPolicy == HandPolicy.DiscardAll && Hand.Count > 0)
             {

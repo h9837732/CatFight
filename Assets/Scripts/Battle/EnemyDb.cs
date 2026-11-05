@@ -23,21 +23,25 @@ namespace CatFight.Battle
             if (_cards != null) return;
             _cards = new Dictionary<string, CardData>();
 
-            // --- 起始卡 ---
+            // --- 起始卡（角色：耄耋 / 圆头猫爹）---
+            // 卡名取自猫的行为：哈气、飞机耳（耳背到头后→圆头）、重击、舔毛。
+            // id 保持旧值（strike/defend/bash），旧存档不会因为改名而读不到卡。
             Add(new CardData
             {
-                id = "strike", name = "打击", type = CardType.Attack, rarity = CardRarity.Basic,
+                id = "strike", name = "哈气", type = CardType.Attack, rarity = CardRarity.Basic,
                 cost = 1, target = TargetMode.SingleEnemy,
                 effects = { new CardEffect { op = EffectOp.Damage, value = 6 } },
-                upgradedEffects = { new CardEffect { op = EffectOp.Damage, value = 9 } }
+                upgradedEffects = { new CardEffect { op = EffectOp.Damage, value = 9 } },
+                flavour = "喉咙里滚出一声低鸣，耳朵向后咎。"
             });
 
             Add(new CardData
             {
-                id = "defend", name = "防御", type = CardType.Skill, rarity = CardRarity.Basic,
+                id = "defend", name = "飞机耳", type = CardType.Skill, rarity = CardRarity.Basic,
                 cost = 1, target = TargetMode.Self,
                 effects = { new CardEffect { op = EffectOp.Block, value = 5 } },
-                upgradedEffects = { new CardEffect { op = EffectOp.Block, value = 8 } }
+                upgradedEffects = { new CardEffect { op = EffectOp.Block, value = 8 } },
+                flavour = "耳朵背到头后，整颗头变成一个圆。"
             });
 
             Add(new CardData
@@ -53,7 +57,17 @@ namespace CatFight.Battle
                 {
                     new CardEffect { op = EffectOp.Damage, value = 10 },
                     new CardEffect { op = EffectOp.ApplyTarget, value = 3, status = StatusType.Vulnerable }
-                }
+                },
+                flavour = "从博古架上跳下来的那一下。"
+            });
+
+            Add(new CardData
+            {
+                id = "heal", name = "舔毛", type = CardType.Skill, rarity = CardRarity.Basic,
+                cost = 1, target = TargetMode.Self,
+                effects = { new CardEffect { op = EffectOp.Heal, value = 5 } },
+                upgradedEffects = { new CardEffect { op = EffectOp.Heal, value = 8 } },
+                flavour = "伤口舔一舔就会好。"
             });
 
             // --- 可获得的卡 ---
@@ -136,13 +150,115 @@ namespace CatFight.Battle
                 effects = { new CardEffect { op = EffectOp.ApplySelf, value = 3, status = StatusType.Thorns } },
                 upgradedEffects = { new CardEffect { op = EffectOp.ApplySelf, value = 4, status = StatusType.Thorns } }
             });
+
+            // --- 耄耋专属（取材于猫的行为，不涉及虐待类梗）---
+
+            Add(new CardData
+            {
+                id = "shelf_ambush", name = "博古架伏击", type = CardType.Attack, rarity = CardRarity.Uncommon,
+                cost = 2, target = TargetMode.SingleEnemy,
+                effects = { new CardEffect { op = EffectOp.Damage, value = 12 } },
+                upgradedEffects = { new CardEffect { op = EffectOp.Damage, value = 16 } },
+                flavour = "跳到博古架上就不下来，僵持到凌晨四点。"
+            });
+
+            Add(new CardData
+            {
+                id = "silent_stare", name = "沉默盯视", type = CardType.Skill, rarity = CardRarity.Common,
+                cost = 1, target = TargetMode.SingleEnemy,
+                effects = { new CardEffect { op = EffectOp.ApplyTarget, value = 2, status = StatusType.Weak } },
+                upgradedEffects = { new CardEffect { op = EffectOp.ApplyTarget, value = 3, status = StatusType.Weak } },
+                flavour = "它从来不叫，只是从眼缝里看着你。"
+            });
+
+            Add(new CardData
+            {
+                id = "round_head", name = "圆头", type = CardType.Power, rarity = CardRarity.Uncommon,
+                cost = 1, target = TargetMode.Self,
+                effects = { new CardEffect { op = EffectOp.ApplySelf, value = 3, status = StatusType.Dexterity } },
+                upgradedEffects = { new CardEffect { op = EffectOp.ApplySelf, value = 4, status = StatusType.Dexterity } },
+                flavour = "耳朵一背，头就圆了。"
+            });
+
+            Add(new CardData
+            {
+                id = "hiss_barrage", name = "哈气连击", type = CardType.Attack, rarity = CardRarity.Uncommon,
+                cost = 2, target = TargetMode.SingleEnemy,
+                effects = { new CardEffect { op = EffectOp.Damage, value = 4, times = 3 } },
+                upgradedEffects = { new CardEffect { op = EffectOp.Damage, value = 5, times = 3 } },
+                flavour = "一声接一声，不给你回嘴的机会。"
+            });
+
+            Add(new CardData
+            {
+                id = "wall_run", name = "飞檐走壁", type = CardType.Skill, rarity = CardRarity.Uncommon,
+                cost = 1, target = TargetMode.Self,
+                effects =
+                {
+                    new CardEffect { op = EffectOp.Block, value = 7 },
+                    new CardEffect { op = EffectOp.Draw, value = 1 }
+                },
+                upgradedEffects =
+                {
+                    new CardEffect { op = EffectOp.Block, value = 10 },
+                    new CardEffect { op = EffectOp.Draw, value = 1 }
+                },
+                flavour = "从墙头到窗台，不过一下。"
+            });
+
+            Add(new CardData
+            {
+                id = "raid", name = "翻墙入户", type = CardType.Skill, rarity = CardRarity.Common,
+                cost = 0, target = TargetMode.Self,
+                effects = { new CardEffect { op = EffectOp.Draw, value = 1 } },
+                upgradedEffects =
+                {
+                    new CardEffect { op = EffectOp.Draw, value = 1 },
+                    new CardEffect { op = EffectOp.GainEnergy, value = 1 }
+                },
+                flavour = "没人知道它是怎么进来的。"
+            });
+
+            Add(new CardData
+            {
+                id = "strongest_war_cat", name = "史上最强战猫", type = CardType.Power, rarity = CardRarity.Rare,
+                cost = 2, target = TargetMode.Self,
+                effects = { new CardEffect { op = EffectOp.ApplySelf, value = 3, status = StatusType.Strength } },
+                upgradedEffects = { new CardEffect { op = EffectOp.ApplySelf, value = 4, status = StatusType.Strength } },
+                flavour = "附近没有一只流浪猫愿意靠近它。"
+            });
+
+            Add(new CardData
+            {
+                id = "cat_dad_roar", name = "猫爹一喝", type = CardType.Attack, rarity = CardRarity.Rare,
+                cost = 2, target = TargetMode.AllEnemies,
+                effects =
+                {
+                    new CardEffect { op = EffectOp.DamageAll, value = 9 },
+                    new CardEffect { op = EffectOp.ApplyAll, value = 1, status = StatusType.Weak }
+                },
+                upgradedEffects =
+                {
+                    new CardEffect { op = EffectOp.DamageAll, value = 12 },
+                    new CardEffect { op = EffectOp.ApplyAll, value = 2, status = StatusType.Weak }
+                },
+                flavour = "一屋子猫，一瞬间都安静了。"
+            });
         }
 
         private static void Add(CardData c) => _cards[c.id] = c;
 
         /// <summary>战斗胜利后的三选一奖励池。</summary>
         public static List<string> RewardPool()
-            => new List<string> { "cleave", "iron_wave", "shrug_it_off", "inflame", "twin_strike", "deadly_poison", "battle_trance", "metallicize" };
+            => new List<string>
+            {
+                // 通用
+                "cleave", "iron_wave", "shrug_it_off", "inflame", "twin_strike",
+                "deadly_poison", "battle_trance", "metallicize",
+                // 耄耋专属
+                "silent_stare", "raid", "wall_run", "round_head",
+                "shelf_ambush", "hiss_barrage", "strongest_war_cat", "cat_dad_roar"
+            };
 
         /// <summary>随机抽 3 张不重复的奖励卡。</summary>
         public static List<CardData> RollRewards(System.Random rng, int count = 3)

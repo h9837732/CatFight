@@ -793,18 +793,11 @@ namespace CatFight.MapScene
             UiKit.AnchorCenter(leave.GetComponent<RectTransform>(), new Vector2(200f, -170f), new Vector2(300f, 72f));
         }
 
+        /// <summary>商店卡名。直接问 CardDb，避免手写清单和卡牌数据不同步。</summary>
         private static string CardName(string id)
         {
-            switch (id)
-            {
-                case "strike": return "打击";
-                case "defend": return "防御";
-                case "bash": return "重击";
-                case "cleave": return "顺劈斩";
-                case "iron_wave": return "铁斩波";
-                case "shrug_it_off": return "耸肩无视";
-                default: return id;
-            }
+            var def = Battle.CardDb.Get(id);
+            return def != null ? def.name : id;
         }
 
         private void ShowEventDialog()

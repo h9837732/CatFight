@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace CatFight.UI
@@ -66,6 +67,33 @@ namespace CatFight.UI
 
         /// <summary>卡面底纹（猫毛纹理）。</summary>
         public static Sprite CardBg => _cardBg != null ? _cardBg : (_cardBg = Load("Art/Cards/card_bg"));
+
+        /// <summary>
+        /// 卡面主图。优先按**卡牌 id** 取（card_art_&lt;id&gt;），没有专门的图就按类型退回。
+        ///
+        /// 为什么按 id 而不是只按类型：技能牌里既有“重击”也有“舔毛”，
+        /// 共用一张图玩家分不出牌。新卡只需丢一张 card_art_&lt;id&gt;.png 就能单独换图。
+        /// </summary>
+        public static Sprite CardArt(string cardId, Battle.CardType type)
+        {
+            if (!string.IsNullOrEmpty(cardId))
+            {
+                var byId = LoadCardArt("Art/Cards/card_art_" + cardId);
+                if (byId != null) return byId;
+            }
+            return CardArt(type);
+        }
+
+        /// <summary>卡图缓存（按资源路径）。避免每次重建手牌都 Resources.Load 一遍。</summary>
+        private static readonly Dictionary<string, Sprite> _cardArtCache = new Dictionary<string, Sprite>();
+
+        private static Sprite LoadCardArt(string path)
+        {
+            if (_cardArtCache.TryGetValue(path, out var hit)) return hit;
+            var s = Load(path);
+            _cardArtCache[path] = s;          // null 也缓存，避免反复重试
+            return s;
+        }
 
         /// <summary>卡面主图：攻击 = 张嘴猫，技能 = 技能猫，防御/能力 = 防御猫。</summary>
         public static Sprite CardArt(Battle.CardType type)
