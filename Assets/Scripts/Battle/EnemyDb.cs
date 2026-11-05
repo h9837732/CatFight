@@ -24,7 +24,7 @@ namespace CatFight.Battle
             _cards = new Dictionary<string, CardData>();
 
             // --- 起始卡（角色：耄耋 / 圆头猫爹）---
-            // 卡名取自猫的行为：哈气、飞机耳（耳背到头后→圆头）、重击、舔毛。
+            // 卡名取自猫的行为：哈气、圆头（耳背到头后整颗头变圆）、强力一哈、嚼口香糖。
             // id 保持旧值（strike/defend/bash），旧存档不会因为改名而读不到卡。
             Add(new CardData
             {
@@ -37,7 +37,7 @@ namespace CatFight.Battle
 
             Add(new CardData
             {
-                id = "defend", name = "飞机耳", type = CardType.Skill, rarity = CardRarity.Basic,
+                id = "defend", name = "圆头", type = CardType.Skill, rarity = CardRarity.Basic,
                 cost = 1, target = TargetMode.Self,
                 effects = { new CardEffect { op = EffectOp.Block, value = 5 } },
                 upgradedEffects = { new CardEffect { op = EffectOp.Block, value = 8 } },
@@ -46,7 +46,7 @@ namespace CatFight.Battle
 
             Add(new CardData
             {
-                id = "bash", name = "重击", type = CardType.Attack, rarity = CardRarity.Basic,
+                id = "bash", name = "强力一哈", type = CardType.Attack, rarity = CardRarity.Basic,
                 cost = 2, target = TargetMode.SingleEnemy,
                 effects =
                 {
@@ -58,16 +58,16 @@ namespace CatFight.Battle
                     new CardEffect { op = EffectOp.Damage, value = 10 },
                     new CardEffect { op = EffectOp.ApplyTarget, value = 3, status = StatusType.Vulnerable }
                 },
-                flavour = "从博古架上跳下来的那一下。"
+                flavour = "重重地哈一下，对面直接没声了。"
             });
 
             Add(new CardData
             {
-                id = "heal", name = "舔毛", type = CardType.Skill, rarity = CardRarity.Basic,
+                id = "heal", name = "嚼口香糖", type = CardType.Skill, rarity = CardRarity.Basic,
                 cost = 1, target = TargetMode.Self,
                 effects = { new CardEffect { op = EffectOp.Heal, value = 5 } },
                 upgradedEffects = { new CardEffect { op = EffectOp.Heal, value = 8 } },
-                flavour = "伤口舔一舔就会好。"
+                flavour = "嘴一直在动，不知道在嚼什么。"
             });
 
             // --- 可获得的卡 ---
@@ -173,11 +173,12 @@ namespace CatFight.Battle
 
             Add(new CardData
             {
-                id = "round_head", name = "圆头", type = CardType.Power, rarity = CardRarity.Uncommon,
+                id = "round_head", name = "炸毛", type = CardType.Power, rarity = CardRarity.Uncommon,
                 cost = 1, target = TargetMode.Self,
                 effects = { new CardEffect { op = EffectOp.ApplySelf, value = 3, status = StatusType.Dexterity } },
                 upgradedEffects = { new CardEffect { op = EffectOp.ApplySelf, value = 4, status = StatusType.Dexterity } },
-                flavour = "耳朵一背，头就圆了。"
+                // id 保留 round_head：名字改成“炸毛”了，但 id 是留给旧存档的
+                flavour = "毛全竖起来，整只猫大一圈。"
             });
 
             Add(new CardData
@@ -244,6 +245,24 @@ namespace CatFight.Battle
                 },
                 flavour = "一屋子猫，一瞬间都安静了。"
             });
+
+            Add(new CardData
+            {
+                id = "knock_over", name = "打翻水杯", type = CardType.Attack, rarity = CardRarity.Common,
+                cost = 1, target = TargetMode.AllEnemies,
+                effects = { new CardEffect { op = EffectOp.DamageAll, value = 6 } },
+                upgradedEffects = { new CardEffect { op = EffectOp.DamageAll, value = 9 } },
+                flavour = "桌子上的杯子，永远活不过今晚。"
+            });
+
+            Add(new CardData
+            {
+                id = "play_dead", name = "装死", type = CardType.Skill, rarity = CardRarity.Uncommon,
+                cost = 2, target = TargetMode.Self, exhaust = true,
+                effects = { new CardEffect { op = EffectOp.Block, value = 15 } },
+                upgradedEffects = { new CardEffect { op = EffectOp.Block, value = 20 } },
+                flavour = "一动不动，连呼吸都省了。"
+            });
         }
 
         private static void Add(CardData c) => _cards[c.id] = c;
@@ -257,7 +276,8 @@ namespace CatFight.Battle
                 "deadly_poison", "battle_trance", "metallicize",
                 // 耄耋专属
                 "silent_stare", "raid", "wall_run", "round_head",
-                "shelf_ambush", "hiss_barrage", "strongest_war_cat", "cat_dad_roar"
+                "shelf_ambush", "hiss_barrage", "strongest_war_cat", "cat_dad_roar",
+                "knock_over", "play_dead"
             };
 
         /// <summary>随机抽 3 张不重复的奖励卡。</summary>

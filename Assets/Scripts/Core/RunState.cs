@@ -61,14 +61,14 @@ namespace CatFight.Core
             return run;
         }
 
-        /// <summary>初始卡组：4 哈气 + 4 飞机耳 + 1 重击 + 1 舔毛（共 10 张，与杀戮尖塔同型）。</summary>
+        /// <summary>初始卡组：4 哈气 + 4 圆头 + 1 强力一哈 + 1 嚼口香糖（共 10 张，与杀戮尖塔同型）。</summary>
         public static List<CardRef> StarterDeck()
         {
             var list = new List<CardRef>();
             for (int i = 0; i < 4; i++) list.Add(new CardRef("strike"));   // 哈气
-            for (int i = 0; i < 4; i++) list.Add(new CardRef("defend"));   // 飞机耳
-            list.Add(new CardRef("bash"));                                 // 重击
-            list.Add(new CardRef("heal"));                                 // 舔毛
+            for (int i = 0; i < 4; i++) list.Add(new CardRef("defend"));   // 圆头
+            list.Add(new CardRef("bash"));                                 // 强力一哈
+            list.Add(new CardRef("heal"));                                 // 嚼口香糖
             return list;
         }
     }

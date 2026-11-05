@@ -71,7 +71,7 @@ namespace CatFight.UI
         /// <summary>
         /// 卡面主图。优先按**卡牌 id** 取（card_art_&lt;id&gt;），没有专门的图就按类型退回。
         ///
-        /// 为什么按 id 而不是只按类型：技能牌里既有“重击”也有“舔毛”，
+        /// 为什么按 id 而不是只按类型：技能牌里既有“强力一哈”也有“嚼口香糖”，
         /// 共用一张图玩家分不出牌。新卡只需丢一张 card_art_&lt;id&gt;.png 就能单独换图。
         /// </summary>
         public static Sprite CardArt(string cardId, Battle.CardType type)
