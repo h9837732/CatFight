@@ -69,17 +69,23 @@ namespace CatFight.UI
         public static Sprite CardBg => _cardBg != null ? _cardBg : (_cardBg = Load("Art/Cards/card_bg"));
 
         /// <summary>
-        /// 卡面主图。优先按**卡牌 id** 取（card_art_&lt;id&gt;），没有专门的图就按类型退回。
+        /// 卡面主图。三级降级：
+        /// card_art_&lt;id&gt;（专属图）→ card_art_&lt;art&gt;（卡牌指定的四张底图之一）→ card_art_&lt;type&gt;（类型退路）。
         ///
-        /// 为什么按 id 而不是只按类型：技能牌里既有“强力一哈”也有“嚼口香糖”，
-        /// 共用一张图玩家分不出牌。新卡只需丢一张 card_art_&lt;id&gt;.png 就能单独换图。
+        /// 为什么要 art 这一层：素材只有 4 张猫脸，光按类型分的话同类型卡牌会全部撞脸。
+        /// 在 art 里按语义挑一张，同类型内部就能拉开区别，而且不用新素材。
         /// </summary>
-        public static Sprite CardArt(string cardId, Battle.CardType type)
+        public static Sprite CardArt(string cardId, string art, Battle.CardType type)
         {
             if (!string.IsNullOrEmpty(cardId))
             {
                 var byId = LoadCardArt("Art/Cards/card_art_" + cardId);
                 if (byId != null) return byId;
+            }
+            if (!string.IsNullOrEmpty(art))
+            {
+                var byArt = LoadCardArt("Art/Cards/card_art_" + art);
+                if (byArt != null) return byArt;
             }
             return CardArt(type);
         }

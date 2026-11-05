@@ -52,6 +52,12 @@ namespace CatFight.Battle
         public int cost = 1;
         public TargetMode target = TargetMode.SingleEnemy;
         public bool exhaust;                 // 打出后消耗
+        /// <summary>
+        /// 卡面底图（不含前缀）。4 张猫脸里选一张：
+        /// strike = 张嘴哈气 / defend = 圆头呆脸 / bash = 压低眯眼 / heal = 绿光环绕。
+        /// 留空则按类型退回。选图看语义：凶一点的给 bash，可爱的给 defend，治疗/毒给 heal。
+        /// </summary>
+        public string art;
         public List<CardEffect> effects = new List<CardEffect>();
         public List<CardEffect> upgradedEffects = new List<CardEffect>();
         public string flavour = "";
